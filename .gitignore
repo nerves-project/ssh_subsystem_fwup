@@ -20,5 +20,5 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-nerves_firmware_ssh-*.tar
+nerves_firmware_ssh2-*.tar
 

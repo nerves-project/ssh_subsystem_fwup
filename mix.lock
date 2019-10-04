@@ -8,6 +8,7 @@
   "makeup_elixir": {:hex, :makeup_elixir, "0.13.0", "be7a477997dcac2e48a9d695ec730b2d22418292675c75aa2d34ba0909dcdeda", [:mix], [{:makeup, "~> 0.8", [hex: :makeup, repo: "hexpm", optional: false]}], "hexpm"},
   "nerves_runtime": {:hex, :nerves_runtime, "0.10.1", "4cefcfbcb99f237def5346e1dc881bda523811ede26adfd3a2204e6f26530146", [:make, :mix], [{:elixir_make, "~> 0.5", [hex: :elixir_make, repo: "hexpm", optional: false]}, {:system_registry, "~> 0.5", [hex: :system_registry, repo: "hexpm", optional: false]}, {:uboot_env, "~> 0.1", [hex: :uboot_env, repo: "hexpm", optional: false]}], "hexpm"},
   "nimble_parsec": {:hex, :nimble_parsec, "0.5.0", "90e2eca3d0266e5c53f8fbe0079694740b9c91b6747f2b7e3c5d21966bba8300", [:mix], [], "hexpm"},
+  "sshkit": {:hex, :sshkit, "0.1.0", "e8f74a9e35e6929df7cd581ce43a5a9ac840cc0757381a8fc9d706909cdee4c3", [:mix], [], "hexpm"},
   "system_registry": {:hex, :system_registry, "0.8.2", "df791dc276652fcfb53be4dab823e05f8269b96ac57c26f86a67838dbc0eefe7", [:mix], [], "hexpm"},
   "uboot_env": {:hex, :uboot_env, "0.1.1", "b01e3ec0973e99473234f27839e29e63b5b81eba6a136a18a78d049d4813d6c5", [:mix], [], "hexpm"},
 }

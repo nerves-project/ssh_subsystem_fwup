@@ -1,28 +1,33 @@
-defmodule Nerves.Firmware.SSH.Fwup do
+defmodule NervesFirmwareSSH2.Fwup do
   use GenServer
   require Logger
 
   @moduledoc false
 
-  def start_link(cm) do
-    GenServer.start_link(__MODULE__, [cm])
+  @type options :: [cm: pid(), fwup_path: Path.t(), devpath: Path.t(), task: String.t()]
+
+  @spec start_link(options()) :: GenServer.on_start()
+  def start_link(options) do
+    GenServer.start_link(__MODULE__, options)
   end
 
+  @spec send_chunk(GenServer.server(), binary()) :: :ok | :error
   def send_chunk(pid, chunk) do
     GenServer.call(pid, {:send, chunk})
   end
 
-  def init([cm]) do
+  @impl true
+  def init(options) do
+    cm = Keyword.fetch!(options, :cm)
     Process.monitor(cm)
-    fwup = System.find_executable("fwup")
-    devpath = Nerves.Runtime.KV.get("nerves_fw_devpath") || "/dev/mmcblk0"
-    task = "upgrade"
+    fwup_path = Keyword.get(options, :fwup_path) || System.find_executable("fwup")
+    devpath = Keyword.get(options, :devpath, "/dev/mmcblk0")
+    task = Keyword.get(options, :task, "upgrade")
 
-    args = if supports_handshake(), do: ["--exit-handshake"], else: []
-    args = args ++ ["--apply", "--no-unmount", "-d", devpath, "--task", task]
+    args = ["--exit-handshake", "--apply", "--no-unmount", "-d", devpath, "--task", task]
 
     port =
-      Port.open({:spawn_executable, fwup}, [
+      Port.open({:spawn_executable, fwup_path}, [
         {:args, args},
         :use_stdio,
         :binary,
@@ -32,6 +37,7 @@ defmodule Nerves.Firmware.SSH.Fwup do
     {:ok, %{port: port, cm: cm}}
   end
 
+  @impl true
   def handle_call(_cmd, _from, %{port: nil} = state) do
     # In the process of closing down, so just ignore these.
     {:reply, :error, state}
@@ -60,6 +66,7 @@ defmodule Nerves.Firmware.SSH.Fwup do
     {:reply, result, state}
   end
 
+  @impl true
   def handle_info({port, {:data, response}}, %{port: port} = state) do
     # fwup says that it's going to exit by sending a CTRL+Z (0x1a)
     case String.split(response, "\x1a", parts: 2) do
@@ -99,17 +106,5 @@ defmodule Nerves.Firmware.SSH.Fwup do
     _ = Logger.info("firmware ssh handler exited before fwup could finish")
     send(port, {self(), :close})
     {:stop, :normal, state}
-  end
-
-  defp supports_handshake() do
-    Version.match?(fwup_version(), "> 0.17.0")
-  end
-
-  defp fwup_version() do
-    {version_str, 0} = System.cmd("fwup", ["--version"])
-
-    version_str
-    |> String.trim()
-    |> Version.parse!()
   end
 end
