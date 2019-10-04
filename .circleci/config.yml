@@ -15,38 +15,46 @@ install_hex_rebar: &install_hex_rebar
       mix local.hex --force
       mix local.rebar --force
 
+install_fwup: &install_fwup
+  run:
+    name: Install fwup
+    command: |
+      wget https://github.com/fhunleth/fwup/releases/download/v1.3.2/fwup_1.3.2_amd64.deb
+      dpkg -i ./fwup_1.3.2_amd64.deb
+
 install_system_deps: &install_system_deps
   run:
     name: Install system dependencies
     command: |
       apt update
-      apt install -y unzip astyle libmnl-dev
+      apt install -y unzip
 
 defaults: &defaults
   working_directory: ~/repo
 
 jobs:
-  build_elixir_1_8_otp_22:
+  build_elixir_1_9_otp_22:
     docker:
-      - image: erlang:22.0
+      - image: erlang:22.1
         environment:
-          ELIXIR_VERSION: 1.8.2-otp-22
+          ELIXIR_VERSION: 1.9.1-otp-22
           LC_ALL: C.UTF-8
     <<: *defaults
     steps:
       - checkout
       - <<: *install_system_deps
       - <<: *install_elixir
+      - <<: *install_fwup
       - <<: *install_hex_rebar
       - restore_cache:
           keys:
             - v1-mix-cache-{{ checksum "mix.lock" }}
       - run: mix deps.get
       - run: mix format --check-formatted
-      - run: mix hex.build
       - run: mix compile
+      - run: MIX_ENV=docs mix docs
+      - run: mix hex.build
       - run: mix test
-      - run: mix docs
       - run: mix dialyzer --halt-exit-status
       - save_cache:
           key: v1-mix-cache-{{ checksum "mix.lock" }}
@@ -64,38 +72,7 @@ jobs:
     steps:
       - checkout
       - <<: *install_system_deps
-      - <<: *install_elixir
-      - <<: *install_hex_rebar
-      - run: mix deps.get
-      - run: mix compile
-      - run: mix test
-
-  build_elixir_1_7_otp_21:
-    docker:
-      - image: erlang:21.3
-        environment:
-          ELIXIR_VERSION: 1.7.4-otp-21
-          LC_ALL: C.UTF-8
-    <<: *defaults
-    steps:
-      - checkout
-      - <<: *install_system_deps
-      - <<: *install_elixir
-      - <<: *install_hex_rebar
-      - run: mix deps.get
-      - run: mix compile
-      - run: mix test
-
-  build_elixir_1_6_otp_20:
-    docker:
-      - image: erlang:20.3.8
-        environment:
-          ELIXIR_VERSION: 1.6.6
-          LC_ALL: C.UTF-8
-    <<: *defaults
-    steps:
-      - checkout
-      - <<: *install_system_deps
+      - <<: *install_fwup
       - <<: *install_elixir
       - <<: *install_hex_rebar
       - run: mix deps.get
@@ -106,11 +83,7 @@ workflows:
   version: 2
   build_test:
     jobs:
-      - build_elixir_1_8_otp_22:
+      - build_elixir_1_9_otp_22:
           context: org-global
       - build_elixir_1_8_otp_21:
-          context: org-global
-      - build_elixir_1_7_otp_21:
-          context: org-global
-      - build_elixir_1_6_otp_20:
           context: org-global
