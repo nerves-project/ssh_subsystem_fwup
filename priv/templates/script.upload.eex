@@ -58,7 +58,22 @@ if [ -z "$FILENAME" ]; then
             # Try the pre-Nerves 1.4 path
             FIRMWARE_PATH="./_build/${MIX_TARGET}/${MIX_ENV}/nerves/images"
             if [ ! -d "$FIRMWARE_PATH" ]; then
-                echo "Can't find the build products. Specify path to .fw file or try running 'mix firmware'"
+                echo "Can't find the build products."
+                echo
+                echo "Nerves environment"
+                echo "MIX_TARGET:    ${MIX_TARGET}"
+                echo "MIX_ENV:       ${MIX_ENV}"
+                echo
+                echo "Make sure your Nerves environment is correct."
+                echo
+                echo "If the Nerves environment is correct make sure you have built the firmware"
+                echo "using 'mix firmware'."
+                echo
+                echo "If you are uploading a .fw file from a custom path you can specify the"
+                echo "path like so:"
+                echo
+                echo "  $0 <device hostname or IP address> </path/to/my/firmware.fw>"
+                echo
                 exit 1
             fi
         fi
@@ -69,6 +84,15 @@ fi
 
 [ -n "$FILENAME" ] || (echo "Error: error determining firmware bundle."; help)
 [ -f "$FILENAME" ] || (echo "Error: can't find '$FILENAME'"; help)
+
+# Check the flavor of stat for sending the filesize
+if stat --version 2>/dev/null | grep GNU >/dev/null; then
+    # The QNU way
+    FILESIZE=$(stat -c%s "$FILENAME")
+else
+    # Else default to the BSD way
+    FILESIZE=$(stat -f %z "$FILENAME")
+fi
 
 FIRMWARE_METADATA=$(fwup -m -i "$FILENAME" || echo "meta-product=Error reading metadata!")
 FIRMWARE_PRODUCT=$(echo "$FIRMWARE_METADATA" | grep -E "^meta-product=" -m 1 2>/dev/null | cut -d '=' -f 2- | tr -d '"')
@@ -125,4 +149,14 @@ if [ "$(uname -s)" = "Darwin" ]; then
     fi
 fi
 
-cat $FILENAME | ssh -s $SSH_OPTIONS $DESTINATION nerves_firmware_ssh2
+# Set fd 3 to screen so fwup progress still shows
+exec 3>&1 
+
+if ! err=$(cat $FILENAME | ssh -s $SSH_OPTIONS $DESTINATION nerves_firmware_ssh 2>&1 >&3) && [[ "$err" =~ "subsystem request failed" ]];
+then
+    # Old subsystem on port 8989 might still be used, so try that
+    printf "fwup:$FILESIZE,reboot\n" | cat - $FILENAME | ssh -s -p 8989 $SSH_OPTIONS $DESTINATION nerves_firmware_ssh
+else
+    # Something else broke. Output it
+    echo -e $err
+fi
