@@ -9,7 +9,8 @@ defmodule NervesFirmwareSSH2 do
           fwup_path: Path.t(),
           devpath: Path.t(),
           task: String.t(),
-          success_callback: mfa()
+          success_callback: mfa(),
+          subsystem: charlist()
         ]
 
   @doc """
