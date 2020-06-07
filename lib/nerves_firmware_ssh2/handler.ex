@@ -76,9 +76,10 @@ defmodule NervesFirmwareSSH2.Handler do
     _ = :ssh_connection.exit_status(state.cm, state.id, 0)
 
     # Let others know that fwup was successful. The usual operation
-    # here is to reboot.
+    # here is to reboot. Run the callback in its own process so that
+    # any issues with it don't affect processing here.
     case state.success_callback do
-      {m, f, a} -> apply(m, f, a)
+      {m, f, a} -> spawn(m, f, a)
       _ -> :ok
     end
 
