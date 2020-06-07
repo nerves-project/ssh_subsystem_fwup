@@ -27,7 +27,7 @@ defmodule NervesFirmwareSSH2 do
   """
   @spec subsystem_spec(options()) :: :ssh.subsystem_spec()
   def subsystem_spec(options \\ []) do
-    subsystem_name = Keyword.get(options, :subsystem, 'nerves_firmware_ssh2')
+    subsystem_name = Keyword.get(options, :subsystem, 'nerves_firmware_ssh2') |> to_charlist()
 
     {subsystem_name, {NervesFirmwareSSH2.Handler, options}}
   end
