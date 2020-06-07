@@ -8,17 +8,19 @@ defmodule NervesFirmwareSSH2.MixProject do
     [
       app: :nerves_firmware_ssh2,
       version: @version,
-      description: description(),
-      package: package(),
-      source_url: @source_url,
       elixir: "~> 1.8",
       elixirc_paths: elixirc_paths(Mix.env()),
-      docs: docs(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      dialyzer: [
-        flags: [:error_handling, :race_conditions, :underspecs]
-      ]
+      dialyzer: dialyzer(),
+      docs: docs(),
+      package: package(),
+      description: description(),
+      preferred_cli_env: %{
+        docs: :docs,
+        "hex.publish": :docs,
+        "hex.build": :docs
+      }
     ]
   end
 
@@ -30,7 +32,7 @@ defmodule NervesFirmwareSSH2.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   defp description do
-    "Perform over-the-air updates to Nerves devices using ssh"
+    "Over-the-air updates to Nerves devices via an ssh subsystem"
   end
 
   defp package do
@@ -42,17 +44,24 @@ defmodule NervesFirmwareSSH2.MixProject do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.19", only: :docs, runtime: false},
-      {:dialyxir, "~> 1.0.0-rc.6", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.22", only: :docs, runtime: false},
+      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
+    ]
+  end
+
+  defp dialyzer() do
+    [
+      flags: [:race_conditions, :unmatched_returns, :error_handling, :underspecs]
     ]
   end
 
   defp docs do
     [
-      extras: ["README.md"],
+      extras: ["README.md", "CHANGELOG.md"],
       main: "readme",
       source_ref: "v#{@version}",
-      source_url: @source_url
+      source_url: @source_url,
+      skip_undefined_reference_warnings_on: ["CHANGELOG.md"]
     ]
   end
 end
