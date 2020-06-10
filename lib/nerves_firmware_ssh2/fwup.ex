@@ -25,6 +25,8 @@ defmodule NervesFirmwareSSH2.Fwup do
     devpath = Keyword.get(options, :devpath, "/dev/mmcblk0")
     task = Keyword.get(options, :task, "upgrade")
 
+    Process.flag(:trap_exit, true)
+
     args = [
       "--exit-handshake",
       "--apply",
@@ -43,11 +45,11 @@ defmodule NervesFirmwareSSH2.Fwup do
         :exit_status
       ])
 
-    {:ok, %{port: port, cm: cm}}
+    {:ok, %{port: port, cm: cm, done: false}}
   end
 
   @impl true
-  def handle_call(_cmd, _from, %{port: nil} = state) do
+  def handle_call(_cmd, _from, %{done: true} = state) do
     # In the process of closing down, so just ignore these.
     {:reply, :error, state}
   end
@@ -68,7 +70,7 @@ defmodule NervesFirmwareSSH2.Fwup do
         :ok
       rescue
         ArgumentError ->
-          _ = Logger.info("Port.command ArgumentError race condition detected and handled")
+          Logger.info("Port.command ArgumentError race condition detected and handled")
           :error
       end
 
@@ -76,44 +78,53 @@ defmodule NervesFirmwareSSH2.Fwup do
   end
 
   @impl true
+  def handle_info(_message, %{done: true} = state) do
+    {:noreply, state}
+  end
+
   def handle_info({port, {:data, response}}, %{port: port} = state) do
     # fwup says that it's going to exit by sending a CTRL+Z (0x1a)
     case String.split(response, "\x1a", parts: 2) do
       [response] ->
         :ssh_channel.cast(state.cm, {:fwup_data, response})
+        {:noreply, state}
 
       [response, <<status>>] ->
         # fwup exited with status
-        _ = Logger.info("fwup exited with status #{status}")
-        send(port, {self(), :close})
+        Logger.info("fwup exited with status #{status}")
+        close_port(port)
         :ssh_channel.cast(state.cm, {:fwup_data, response})
         :ssh_channel.cast(state.cm, {:fwup_exit, status})
+        {:noreply, %{state | done: true}}
 
       [response, other] ->
         # fwup exited without status
-        _ = Logger.info("fwup exited improperly: #{inspect(other)}")
-        send(port, {self(), :close})
+        Logger.info("fwup exited improperly: #{inspect(other)}")
+        close_port(port)
         :ssh_channel.cast(state.cm, {:fwup_data, response})
+        {:noreply, %{state | done: true}}
     end
-
-    {:noreply, state}
   end
 
   def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
-    _ = Logger.info("fwup exited with status #{status} without handshaking")
+    Logger.info("fwup exited with status #{status} without handshaking")
     :ssh_channel.cast(state.cm, {:fwup_exit, status})
-    {:noreply, %{state | port: nil}}
+    {:noreply, %{state | done: true}}
   end
 
   def handle_info({port, :closed}, %{port: port} = state) do
-    _ = Logger.info("fwup port was closed")
+    Logger.info("fwup port was closed")
     :ssh_channel.cast(state.cm, {:fwup_exit, 0})
-    {:noreply, %{state | port: nil}}
+    {:noreply, %{state | done: true}}
   end
 
   def handle_info({:DOWN, _, :process, cm, _reason}, %{cm: cm, port: port} = state) do
-    _ = Logger.info("firmware ssh handler exited before fwup could finish")
+    Logger.info("firmware ssh handler exited before fwup could finish")
+    close_port(port)
+    {:noreply, %{state | done: true}}
+  end
+
+  defp close_port(port) do
     send(port, {self(), :close})
-    {:stop, :normal, state}
   end
 end

@@ -7,7 +7,7 @@ defmodule NervesFirmwareSSH2.Handler do
 
   defmodule State do
     @moduledoc false
-    defstruct state: :running_commands,
+    defstruct state: :running_fwup,
               id: nil,
               cm: nil,
               fwup: nil,
@@ -18,7 +18,7 @@ defmodule NervesFirmwareSSH2.Handler do
   # See http://erlang.org/doc/man/ssh_channel.html for API
 
   def init(options) do
-    _ = Logger.debug("nerves_firmware_ssh2: initialized")
+    Logger.debug("nerves_firmware_ssh2: initialized")
 
     success_callback = Keyword.get(options, :success_callback, {Nerves.Runtime, :reboot, []})
 
@@ -26,7 +26,7 @@ defmodule NervesFirmwareSSH2.Handler do
   end
 
   def handle_msg({:ssh_channel_up, channel_id, connection_manager}, state) do
-    _ = Logger.debug("nerves_firmware_ssh2: new connection")
+    Logger.debug("nerves_firmware_ssh2: new connection")
     {:ok, fwup} = Fwup.start_link([cm: self()] ++ state.fwup_options)
 
     {:ok, %{state | id: channel_id, cm: connection_manager, fwup: fwup}}
@@ -69,36 +69,32 @@ defmodule NervesFirmwareSSH2.Handler do
     end
   end
 
-  def handle_cast({:fwup_exit, 0}, state) do
+  def handle_cast({:fwup_exit, rc}, state) do
     # Successful run of fwup.
-    _ = Logger.debug("nerves_firmware_ssh2: success")
+    Logger.debug("nerves_firmware_ssh2: rc=#{rc}")
     _ = :ssh_connection.send_eof(state.cm, state.id)
-    _ = :ssh_connection.exit_status(state.cm, state.id, 0)
+    _ = :ssh_connection.exit_status(state.cm, state.id, rc)
 
-    # Let others know that fwup was successful. The usual operation
-    # here is to reboot. Run the callback in its own process so that
-    # any issues with it don't affect processing here.
-    case state.success_callback do
-      {m, f, a} -> spawn(m, f, a)
-      _ -> :ok
-    end
+    run_callback(rc, state.success_callback)
 
     {:stop, state.id, state}
   end
 
-  def handle_cast({:fwup_exit, rc}, state) do
-    _ = :ssh_connection.send_eof(state.cm, state.id)
-    _ = :ssh_connection.exit_status(state.cm, state.id, rc)
-
-    {:stop, :fwup_error, state}
+  defp run_callback(0 = _rc, {m, f, a}) do
+    # Let others know that fwup was successful. The usual operation
+    # here is to reboot. Run the callback in its own process so that
+    # any issues with it don't affect processing here.
+    spawn(m, f, a)
   end
 
+  defp run_callback(_rc, _mfa), do: :ok
+
   def terminate(_reason, _state) do
-    _ = Logger.debug("nerves_firmware_ssh2: connection terminated")
+    Logger.debug("nerves_firmware_ssh2: connection terminated")
     :ok
   end
 
-  defp process_message(:running_commands, data, state) do
+  defp process_message(:running_fwup, data, state) do
     case Fwup.send_chunk(state.fwup, data) do
       :ok ->
         {:ok, state}
@@ -106,10 +102,7 @@ defmodule NervesFirmwareSSH2.Handler do
       _ ->
         # Error - need to wait for fwup to exit so that we can
         # report back anything that it may say
-        new_state = %{
-          state
-          | state: :wait_for_fwup_error
-        }
+        new_state = %{state | state: :wait_for_fwup_error}
 
         {:ok, new_state}
     end
