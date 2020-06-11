@@ -44,6 +44,7 @@ defmodule NervesFirmwareSSH2.MixProject do
 
   defp deps do
     [
+      {:nerves_runtime, "~> 0.11"},
       {:ex_doc, "~> 0.22", only: :docs, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
     ]

@@ -19,12 +19,12 @@ defmodule NervesFirmwareSSH2.Fwup do
   @impl true
   def init(options) do
     cm = Keyword.fetch!(options, :cm)
-    Process.monitor(cm)
-    fwup_path = Keyword.get(options, :fwup_path) || System.find_executable("fwup")
-    fwup_extra_options = Keyword.get(options, :fwup_extra_options, [])
-    devpath = Keyword.get(options, :devpath, "/dev/mmcblk0")
-    task = Keyword.get(options, :task, "upgrade")
+    fwup_path = Keyword.fetch!(options, :fwup_path)
+    fwup_extra_options = Keyword.fetch!(options, :fwup_extra_options)
+    devpath = Keyword.fetch!(options, :devpath)
+    task = Keyword.fetch!(options, :task)
 
+    Process.monitor(cm)
     Process.flag(:trap_exit, true)
 
     args = [

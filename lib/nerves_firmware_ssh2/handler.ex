@@ -11,23 +11,30 @@ defmodule NervesFirmwareSSH2.Handler do
               id: nil,
               cm: nil,
               fwup: nil,
-              fwup_options: [],
-              success_callback: nil
+              options: []
   end
 
   # See http://erlang.org/doc/man/ssh_channel.html for API
 
   def init(options) do
-    Logger.debug("nerves_firmware_ssh2: initialized")
+    combined_options = Keyword.merge(default_options(), options)
 
-    success_callback = Keyword.get(options, :success_callback, {Nerves.Runtime, :reboot, []})
+    {:ok, %State{options: combined_options}}
+  end
 
-    {:ok, %State{success_callback: success_callback, fwup_options: options}}
+  defp default_options() do
+    [
+      devpath: Nerves.Runtime.KV.get("nerves_fw_devpath"),
+      fwup_path: System.find_executable("fwup"),
+      fwup_extra_options: [],
+      task: "upgrade",
+      success_callback: {Nerves.Runtime, :reboot, []}
+    ]
   end
 
   def handle_msg({:ssh_channel_up, channel_id, connection_manager}, state) do
     Logger.debug("nerves_firmware_ssh2: new connection")
-    {:ok, fwup} = Fwup.start_link([cm: self()] ++ state.fwup_options)
+    {:ok, fwup} = Fwup.start_link([cm: self()] ++ state.options)
 
     {:ok, %{state | id: channel_id, cm: connection_manager, fwup: fwup}}
   end
@@ -75,7 +82,7 @@ defmodule NervesFirmwareSSH2.Handler do
     _ = :ssh_connection.send_eof(state.cm, state.id)
     _ = :ssh_connection.exit_status(state.cm, state.id, rc)
 
-    run_callback(rc, state.success_callback)
+    run_callback(rc, state.options[:success_callback])
 
     {:stop, state.id, state}
   end
