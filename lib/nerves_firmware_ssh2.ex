@@ -33,7 +33,7 @@ defmodule NervesFirmwareSSH2 do
   @typedoc """
   Options:
 
-  * `:devpath` - the path for fwup to upgrade
+  * `:devpath` - override the path for fwup to upgrade
   * `:fwup_path` - path to the fwup firmware update utility
   * `:fwup_extra_options` - additional options to pass to fwup like for setting
   * public keys
