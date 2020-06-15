@@ -24,7 +24,7 @@ defmodule SSHSubsystemFwup.Handler do
 
   defp default_options() do
     [
-      devpath: Nerves.Runtime.KV.get("nerves_fw_devpath"),
+      devpath: "",
       fwup_path: System.find_executable("fwup"),
       fwup_extra_options: [],
       task: "upgrade",
@@ -34,10 +34,18 @@ defmodule SSHSubsystemFwup.Handler do
 
   @impl true
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
-    Logger.debug("ssh_subsystem_fwup: new connection")
-    fwup = FwupPort.open_port(state.options)
+    devpath = state.options[:devpath]
 
-    {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
+    if is_binary(devpath) and File.exists?(devpath) do
+      Logger.debug("ssh_subsystem_fwup: starting fwup")
+      fwup = FwupPort.open_port(state.options)
+      {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
+    else
+      :ssh_connection.send(cm, channel_id, "fwup devpath is invalid: #{inspect(devpath)}")
+      :ssh_connection.exit_status(cm, channel_id, 1)
+      :ssh_connection.close(cm, channel_id)
+      {:stop, :normal, state}
+    end
   end
 
   def handle_msg({port, message}, %{fwup: port} = state) do

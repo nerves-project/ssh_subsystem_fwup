@@ -20,8 +20,10 @@ defmodule SSHSubsystemFwup do
   `SSHSubsystemFwup.subsystem_spec/1`:
 
   ```elixir
+  devpath = Nerves.Runtime.KV.get("nerves_fw_devpath")
+
   :ssh.daemon([
-        {:subsystems, [SSHSubsystemFwup.subsystem_spec()]}
+        {:subsystems, [SSHSubsystemFwup.subsystem_spec(devpath: devpath)]}
       ])
   ```
 
@@ -33,7 +35,7 @@ defmodule SSHSubsystemFwup do
   @typedoc """
   Options:
 
-  * `:devpath` - override the path for fwup to upgrade
+  * `:devpath` - path for fwup to upgrade (Required)
   * `:fwup_path` - path to the fwup firmware update utility
   * `:fwup_extra_options` - additional options to pass to fwup like for setting
     public keys

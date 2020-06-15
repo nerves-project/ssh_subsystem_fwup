@@ -23,8 +23,8 @@ defmodule SSHSubsystemFwupTest do
     on_exit(fn ->
       :ssh.stop_daemon(ref)
 
-      devpath = Keyword.get(options, :devpath)
-      File.rm!(devpath)
+      devpath = options[:devpath]
+      devpath && File.rm!(devpath)
     end)
   end
 
@@ -72,6 +72,7 @@ defmodule SSHSubsystemFwupTest do
 
   test "successful update", context do
     options = default_options(context.test)
+    File.touch!(options[:devpath])
     start_sshd(options)
 
     fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware()
@@ -92,6 +93,8 @@ defmodule SSHSubsystemFwupTest do
 
   test "failed update", context do
     options = default_options(context.test)
+    File.touch!(options[:devpath])
+
     start_sshd(options)
     fw_contents = SSHSubsystemFwup.Support.Fwup.create_corrupt_firmware()
 
@@ -106,6 +109,8 @@ defmodule SSHSubsystemFwupTest do
 
   test "overriding the fwup task", context do
     options = default_options(context.test) ++ [task: "complete"]
+    File.touch!(options[:devpath])
+
     start_sshd(options)
     fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware(task: "complete")
 
@@ -121,5 +126,15 @@ defmodule SSHSubsystemFwupTest do
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
+  end
+
+  test "unspecified devpath is an error" do
+    start_sshd([])
+    fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware(task: "complete")
+
+    {output, exit_status} = do_ssh(fw_contents)
+
+    assert exit_status != 0
+    assert output == "fwup devpath is invalid: \"\""
   end
 end
