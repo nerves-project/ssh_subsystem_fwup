@@ -58,7 +58,7 @@ defmodule NervesFirmwareSsh2Test do
       {:ssh_cm, ^connection_ref, {:closed, 0}} ->
         {result, exit_status}
     after
-      5000 ->
+      1000 ->
         raise RuntimeError, "ssh timed out?"
     end
   end
@@ -84,7 +84,7 @@ defmodule NervesFirmwareSsh2Test do
     end)
 
     # Check that the success function was called
-    assert_received :success
+    assert_receive :success
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
@@ -101,7 +101,7 @@ defmodule NervesFirmwareSsh2Test do
       assert exit_status == 1
     end)
 
-    refute_received :success
+    refute_receive :success
   end
 
   test "overriding the fwup task", context do
@@ -117,7 +117,7 @@ defmodule NervesFirmwareSsh2Test do
     end)
 
     # Check that the success function was called
-    assert_received :success
+    assert_receive :success
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
