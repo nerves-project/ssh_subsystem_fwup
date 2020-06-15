@@ -1,10 +1,10 @@
-defmodule NervesFirmwareSSH2.Handler do
+defmodule SSHSubsystemFwup.Handler do
   @behaviour :ssh_client_channel
   require Logger
 
   @moduledoc false
 
-  alias NervesFirmwareSSH2.FwupPort
+  alias SSHSubsystemFwup.FwupPort
 
   defmodule State do
     @moduledoc false
@@ -34,7 +34,7 @@ defmodule NervesFirmwareSSH2.Handler do
 
   @impl true
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
-    Logger.debug("nerves_firmware_ssh2: new connection")
+    Logger.debug("ssh_subsystem_fwup: new connection")
     fwup = FwupPort.open_port(state.options)
 
     {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
@@ -52,7 +52,7 @@ defmodule NervesFirmwareSSH2.Handler do
         _ = :ssh_connection.send_eof(state.cm, state.id)
         _ = :ssh_connection.exit_status(state.cm, state.id, status)
         :ssh_connection.close(state.cm, state.id)
-        Logger.debug("nerves_firmware_ssh2: fwup exited with status #{status}")
+        Logger.debug("ssh_subsystem_fwup: fwup exited with status #{status}")
         run_callback(status, state.options[:success_callback])
         {:stop, :normal, state}
     end

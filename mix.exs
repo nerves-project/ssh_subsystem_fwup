@@ -1,12 +1,12 @@
-defmodule NervesFirmwareSSH2.MixProject do
+defmodule SSHSubsystemFwup.MixProject do
   use Mix.Project
 
   @version "0.4.4"
-  @source_url "https://github.com/nerves-project/nerves_firmware_ssh2"
+  @source_url "https://github.com/nerves-project/ssh_subsystem_fwup"
 
   def project do
     [
-      app: :nerves_firmware_ssh2,
+      app: :ssh_subsystem_fwup,
       version: @version,
       elixir: "~> 1.8",
       elixirc_paths: elixirc_paths(Mix.env()),

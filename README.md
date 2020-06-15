@@ -1,12 +1,12 @@
-# NervesFirmwareSSH2
+# SSHSubsystemFwup
 
-[![CircleCI](https://circleci.com/gh/nerves-project/nerves_firmware_ssh2/tree/master.svg?style=svg)](https://circleci.com/gh/nerves-project/nerves_firmware_ssh2/tree/master)
-[![Hex version](https://img.shields.io/hexpm/v/nerves_firmware_ssh2.svg "Hex version")](https://hex.pm/packages/nerves_firmware_ssh2)
+[![CircleCI](https://circleci.com/gh/nerves-project/ssh_subsystem_fwup/tree/master.svg?style=svg)](https://circleci.com/gh/nerves-project/ssh_subsystem_fwup/tree/master)
+[![Hex version](https://img.shields.io/hexpm/v/ssh_subsystem_fwup.svg "Hex version")](https://hex.pm/packages/ssh_subsystem_fwup)
 
 This library provides an [ssh](https://en.wikipedia.org/wiki/Secure_Shell)
 subsystem that applies Nerves "over-the-air" firmware updates. This is a
 breaking update to
-[`nerves_firmware_ssh`](https://github.com/nerves-project/nerves_firmware_ssh2)
+[`ssh_subsystem_fwup`](https://github.com/nerves-project/ssh_subsystem_fwup)
 that extracts the update service to be a `:ssh.daemon/1` spec. This removes
 quite a bit of code and makes it possible to:
 
@@ -16,17 +16,17 @@ quite a bit of code and makes it possible to:
 3. Run firmware updates on port 22 with other ssh services
 
 In addition, the protocol for sending updates over ssh has been simplified. If
-you're coming from `nerves_firmware_ssh`, you'll likely have used the
+you're coming from `ssh_subsystem_fwup`, you'll likely have used the
 `upload.sh` script so this will be transparent. If you wrote your own script,
 you'll need to delete some lines of code from it.
 
 ## Installation
 
-First, add `nerves_firmware_ssh2` to your list of dependencies in `mix.exs`:
+First, add `ssh_subsystem_fwup` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
-  [{:nerves_firmware_ssh2, "~> 0.4.0"}]
+  [{:ssh_subsystem_fwup, "~> 0.4.0"}]
 end
 ```
 
@@ -36,7 +36,7 @@ will look something like:
 ```elixir
     {:ok, ref} =
       :ssh.daemon([
-        {:subsystems, [NervesFirmwareSSH2.subsystem_spec()]}
+        {:subsystems, [SSHSubsystemFwup.subsystem_spec()]}
       ])
 ```
 
@@ -76,7 +76,7 @@ It's not necessary to use the `upload.sh` script. The following line is
 equivalent:
 
 ```shell
-cat $firmware | ssh -s $nerves_device nerves_firmware_ssh2
+cat $firmware | ssh -s $nerves_device fwup
 ```
 
 ## License

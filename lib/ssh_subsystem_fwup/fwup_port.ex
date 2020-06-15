@@ -1,4 +1,4 @@
-defmodule NervesFirmwareSSH2.FwupPort do
+defmodule SSHSubsystemFwup.FwupPort do
   require Logger
 
   @moduledoc false
@@ -56,7 +56,6 @@ defmodule NervesFirmwareSSH2.FwupPort do
 
       [response, <<status>>] ->
         # fwup exited with status
-        Logger.info("fwup exited with status #{status}")
         close_port(port)
         {:done, response, status}
 

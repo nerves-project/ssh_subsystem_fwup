@@ -1,6 +1,6 @@
 # Code.compiler_options(ignore_module_conflict: true)
 
-defmodule NervesFirmwareSsh2.Support.Fwup do
+defmodule SSHSubsystemFwup.Support.Fwup do
   @moduledoc """
   This module is intended to help with testing and development
   by allowing for "easy" creation of firmware signing keys, and
@@ -65,7 +65,7 @@ defmodule NervesFirmwareSsh2.Support.Fwup do
 
     """
     meta-product = "Test firmware"
-    meta-description = "Try to test nerves_firmware_ssh2"
+    meta-description = "Try to test ssh_subsystem_fwup"
     meta-version = "0.1.0"
     meta-platform = "rpi3"
     meta-architecture = "arm"

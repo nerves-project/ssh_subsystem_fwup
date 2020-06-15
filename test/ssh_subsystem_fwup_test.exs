@@ -1,10 +1,10 @@
-defmodule NervesFirmwareSsh2Test do
+defmodule SSHSubsystemFwupTest do
   use ExUnit.Case
   import ExUnit.CaptureLog
-  # doctest NervesFirmwareSsh2
+  # doctest SSHSubsystemFwup
 
   @port 10123
-  @tmpdir Path.join(System.tmp_dir!(), "nerves_firmware_ssh2")
+  @tmpdir Path.join(System.tmp_dir!(), "ssh_subsystem_fwup")
 
   setup_all do
     File.mkdir_p!(@tmpdir)
@@ -17,7 +17,7 @@ defmodule NervesFirmwareSsh2Test do
         {:id_string, :random},
         {:user_passwords, [{'user', 'password'}]},
         {:system_dir, 'test/fixtures'},
-        {:subsystems, [NervesFirmwareSSH2.subsystem_spec(options)]}
+        {:subsystems, [SSHSubsystemFwup.subsystem_spec(options)]}
       ])
 
     on_exit(fn ->
@@ -35,7 +35,7 @@ defmodule NervesFirmwareSsh2Test do
 
     {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
 
-    :success = :ssh_connection.subsystem(connection_ref, channel_id, 'nerves_firmware_ssh2', 500)
+    :success = :ssh_connection.subsystem(connection_ref, channel_id, 'fwup', 500)
 
     :ok = :ssh_connection.send(connection_ref, channel_id, payload)
 
@@ -74,7 +74,7 @@ defmodule NervesFirmwareSsh2Test do
     options = default_options(context.test)
     start_sshd(options)
 
-    fw_contents = NervesFirmwareSsh2.Support.Fwup.create_firmware()
+    fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware()
 
     capture_log(fn ->
       {output, exit_status} = do_ssh(fw_contents)
@@ -93,7 +93,7 @@ defmodule NervesFirmwareSsh2Test do
   test "failed update", context do
     options = default_options(context.test)
     start_sshd(options)
-    fw_contents = NervesFirmwareSsh2.Support.Fwup.create_corrupt_firmware()
+    fw_contents = SSHSubsystemFwup.Support.Fwup.create_corrupt_firmware()
 
     capture_log(fn ->
       {_output, exit_status} = do_ssh(fw_contents)
@@ -107,7 +107,7 @@ defmodule NervesFirmwareSsh2Test do
   test "overriding the fwup task", context do
     options = default_options(context.test) ++ [task: "complete"]
     start_sshd(options)
-    fw_contents = NervesFirmwareSsh2.Support.Fwup.create_firmware(task: "complete")
+    fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware(task: "complete")
 
     capture_log(fn ->
       {output, exit_status} = do_ssh(fw_contents)

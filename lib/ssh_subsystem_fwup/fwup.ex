@@ -1,4 +1,4 @@
-defmodule NervesFirmwareSSH2.Fwup do
+defmodule SSHSubsystemFwup.Fwup do
   use GenServer
   require Logger
 

@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   @shortdoc "Generates a shell script for pushing firmware updates"
 
   @moduledoc """
-  Creates a shell script for invoking ssh to upgrade devices with nerves_firmware_ssh.
+  Creates a shell script for invoking ssh to upgrade devices with ssh_subsystem_fwup.
 
   This script may be used on its own or used as a base for more complicated
   device software upgrade deployments.
@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   @spec run(keyword()) :: :ok
   def run(_args) do
     upload_script_contents =
-      Application.app_dir(:nerves_firmware_ssh2, ["priv", "templates", "script.upload.eex"])
+      Application.app_dir(:ssh_subsystem_fwup, ["priv", "templates", "script.upload.eex"])
       |> EEx.eval_file([])
 
     if File.exists?(@script_name) do

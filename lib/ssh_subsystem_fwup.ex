@@ -1,4 +1,4 @@
-defmodule NervesFirmwareSSH2 do
+defmodule SSHSubsystemFwup do
   @moduledoc """
   SSH subsystem for upgrading Nerves devices
 
@@ -7,7 +7,7 @@ defmodule NervesFirmwareSSH2 do
   `ssh` like this:
 
   ```shell
-  cat $firmware | ssh -s $ip_address nerves_firmware_ssh2
+  cat $firmware | ssh -s $ip_address fwup
   ```
 
   Where `$ip_address` is the IP address of your Nerves device. Depending on how
@@ -17,15 +17,15 @@ defmodule NervesFirmwareSSH2 do
   See [`nerves_ssh`](https://github.com/nerves-project/nerves_ssh/) for an easy
   way to set this up. If you don't want to use `nerves_ssh`, then in your call
   to `:ssh.daemon` add the return value from
-  `NervesFirmwareSSH2.subsystem_spec/1`:
+  `SSHSubsystemFwup.subsystem_spec/1`:
 
   ```elixir
   :ssh.daemon([
-        {:subsystems, [NervesFirmwareSSH2.subsystem_spec(devpath: "/dev/mmcblk0")]}
+        {:subsystems, [SSHSubsystemFwup.subsystem_spec()]}
       ])
   ```
 
-  See `NervesFirmwareSSH2.subsystem_spec/1` for options. You will almost always
+  See `SSHSubsystemFwup.subsystem_spec/1` for options. You will almost always
   need to pass the path to the device that should be updated since that is
   device-specific.
   """
@@ -36,11 +36,11 @@ defmodule NervesFirmwareSSH2 do
   * `:devpath` - override the path for fwup to upgrade
   * `:fwup_path` - path to the fwup firmware update utility
   * `:fwup_extra_options` - additional options to pass to fwup like for setting
-  * public keys
+    public keys
   * `:success_callback` - an MFA to call when a firmware update completes
     successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
   * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
-  * `:subsystem` - the ssh subsystem name. Defaults to 'nerves_firmware_ssh2'
+  * `:subsystem` - the ssh subsystem name. Defaults to 'fwup'
   """
   @type options :: [
           devpath: Path.t(),
@@ -56,8 +56,8 @@ defmodule NervesFirmwareSSH2 do
   """
   @spec subsystem_spec(options()) :: :ssh.subsystem_spec()
   def subsystem_spec(options \\ []) do
-    subsystem_name = Keyword.get(options, :subsystem, 'nerves_firmware_ssh2') |> to_charlist()
+    subsystem_name = Keyword.get(options, :subsystem, 'fwup') |> to_charlist()
 
-    {subsystem_name, {NervesFirmwareSSH2.Handler, options}}
+    {subsystem_name, {SSHSubsystemFwup.Handler, options}}
   end
 end
