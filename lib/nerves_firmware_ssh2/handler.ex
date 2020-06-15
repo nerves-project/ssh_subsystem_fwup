@@ -4,7 +4,7 @@ defmodule NervesFirmwareSSH2.Handler do
 
   @moduledoc false
 
-  alias NervesFirmwareSSH2.Fwup
+  alias NervesFirmwareSSH2.FwupPort
 
   defmodule State do
     @moduledoc false
@@ -35,14 +35,45 @@ defmodule NervesFirmwareSSH2.Handler do
   @impl true
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
     Logger.debug("nerves_firmware_ssh2: new connection")
-    {:ok, fwup} = Fwup.start_link([cm: self()] ++ state.options)
+    fwup = FwupPort.open_port(state.options)
 
     {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
   end
 
+  def handle_msg({port, message}, %{fwup: port} = state) do
+    case FwupPort.handle_port(port, message) do
+      {:respond, response} ->
+        _ = :ssh_connection.send(state.cm, state.id, response)
+
+        {:ok, state}
+
+      {:done, response, status} ->
+        if response != "", do: :ssh_connection.send(state.cm, state.id, response)
+        _ = :ssh_connection.send_eof(state.cm, state.id)
+        _ = :ssh_connection.exit_status(state.cm, state.id, status)
+        :ssh_connection.close(state.cm, state.id)
+        Logger.debug("nerves_firmware_ssh2: fwup exited with status #{status}")
+        run_callback(status, state.options[:success_callback])
+        {:stop, :normal, state}
+    end
+  end
+
+  def handle_msg({:EXIT, port, _reason}, %{fwup: port} = state) do
+    _ = :ssh_connection.send_eof(state.cm, state.id)
+    _ = :ssh_connection.exit_status(state.cm, state.id, 1)
+    :ssh_connection.close(state.cm, state.id)
+    {:stop, :normal, state}
+  end
+
+  def handle_msg(message, state) do
+    Logger.debug("Ignoring message #{inspect(message)}")
+    {:ok, state}
+  end
+
   @impl true
   def handle_ssh_msg({:ssh_cm, _cm, {:data, _channel_id, 0, data}}, state) do
-    process_message(state.state, data, state)
+    FwupPort.send_data(state.fwup, data)
+    {:ok, state}
   end
 
   def handle_ssh_msg({:ssh_cm, _cm, {:data, _channel_id, 1, _data}}, state) do
@@ -78,22 +109,9 @@ defmodule NervesFirmwareSSH2.Handler do
   end
 
   @impl true
-  def handle_cast({:fwup_data, response}, state) do
-    case :ssh_connection.send(state.cm, state.id, response) do
-      :ok -> {:noreply, state}
-      {:error, _reason} -> {:stop, :normal, state}
-    end
-  end
 
-  def handle_cast({:fwup_exit, rc}, state) do
-    # Successful run of fwup.
-    Logger.debug("nerves_firmware_ssh2: rc=#{rc}")
-    _ = :ssh_connection.send_eof(state.cm, state.id)
-    _ = :ssh_connection.exit_status(state.cm, state.id, rc)
-
-    run_callback(rc, state.options[:success_callback])
-
-    {:stop, :normal, state}
+  def handle_cast(_message, state) do
+    {:noreply, state}
   end
 
   defp run_callback(0 = _rc, {m, f, a}) do
@@ -107,31 +125,11 @@ defmodule NervesFirmwareSSH2.Handler do
 
   @impl true
   def terminate(_reason, _state) do
-    Logger.debug("nerves_firmware_ssh2: connection terminated")
     :ok
   end
 
   @impl true
   def code_change(_old, state, _extra) do
-    {:ok, state}
-  end
-
-  defp process_message(:running_fwup, data, state) do
-    case Fwup.send_chunk(state.fwup, data) do
-      :ok ->
-        {:ok, state}
-
-      _ ->
-        # Error - need to wait for fwup to exit so that we can
-        # report back anything that it may say
-        new_state = %{state | state: :wait_for_fwup_error}
-
-        {:ok, new_state}
-    end
-  end
-
-  defp process_message(:wait_for_fwup_error, _data, state) do
-    # Just discard anything we get
     {:ok, state}
   end
 end
