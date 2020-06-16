@@ -41,7 +41,7 @@ defmodule SSHSubsystemFwup.Handler do
       fwup = FwupPort.open_port(state.options)
       {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
     else
-      :ssh_connection.send(cm, channel_id, "fwup devpath is invalid: #{inspect(devpath)}")
+      _ = :ssh_connection.send(cm, channel_id, "fwup devpath is invalid: #{inspect(devpath)}")
       :ssh_connection.exit_status(cm, channel_id, 1)
       :ssh_connection.close(cm, channel_id)
       {:stop, :normal, state}
@@ -56,7 +56,7 @@ defmodule SSHSubsystemFwup.Handler do
         {:ok, state}
 
       {:done, response, status} ->
-        if response != "", do: :ssh_connection.send(state.cm, state.id, response)
+        _ = if response != "", do: :ssh_connection.send(state.cm, state.id, response)
         _ = :ssh_connection.send_eof(state.cm, state.id)
         _ = :ssh_connection.exit_status(state.cm, state.id, status)
         :ssh_connection.close(state.cm, state.id)
@@ -126,7 +126,8 @@ defmodule SSHSubsystemFwup.Handler do
     # Let others know that fwup was successful. The usual operation
     # here is to reboot. Run the callback in its own process so that
     # any issues with it don't affect processing here.
-    spawn(m, f, a)
+    _ = spawn(m, f, a)
+    :ok
   end
 
   defp run_callback(_rc, _mfa), do: :ok
