@@ -31,32 +31,30 @@ defmodule SSHSubsystemFwupTest do
   def do_ssh(payload) do
     connect_opts = [silently_accept_hosts: true, user: 'user', password: 'password']
 
-    {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
-
-    {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
-
-    :success = :ssh_connection.subsystem(connection_ref, channel_id, 'fwup', 500)
-
-    :ok = :ssh_connection.send(connection_ref, channel_id, payload)
-
-    :ok = :ssh_connection.send_eof(connection_ref, channel_id)
-
-    wait_for_complete(connection_ref, channel_id, "", -1)
+    with {:ok, connection_ref} <- :ssh.connect(:localhost, @port, connect_opts),
+         {:ok, channel_id} <- :ssh_connection.session_channel(connection_ref, 500),
+         :success <- :ssh_connection.subsystem(connection_ref, channel_id, 'fwup', 500),
+         :ok <- :ssh_connection.send(connection_ref, channel_id, payload),
+         :ok <- :ssh_connection.send_eof(connection_ref, channel_id) do
+      wait_for_complete(connection_ref, channel_id, {"", -1})
+    else
+      result -> {"Failed: #{inspect(result)}", -1}
+    end
   end
 
-  defp wait_for_complete(connection_ref, channel_id, result, exit_status) do
+  defp wait_for_complete(connection_ref, channel_id, {result, exit_status} = rc) do
     receive do
       {:ssh_cm, ^connection_ref, {:data, 0, 0, message}} ->
-        wait_for_complete(connection_ref, channel_id, result <> message, exit_status)
+        wait_for_complete(connection_ref, channel_id, {result <> message, exit_status})
 
       {:ssh_cm, ^connection_ref, {:eof, 0}} ->
-        wait_for_complete(connection_ref, channel_id, result, exit_status)
+        wait_for_complete(connection_ref, channel_id, rc)
 
       {:ssh_cm, ^connection_ref, {:exit_status, 0, status}} ->
-        wait_for_complete(connection_ref, channel_id, result, status)
+        wait_for_complete(connection_ref, channel_id, {result, status})
 
       {:ssh_cm, ^connection_ref, {:closed, 0}} ->
-        {result, exit_status}
+        rc
     after
       1000 ->
         raise RuntimeError, "ssh timed out?"
@@ -135,6 +133,6 @@ defmodule SSHSubsystemFwupTest do
     {output, exit_status} = do_ssh(fw_contents)
 
     assert exit_status != 0
-    assert output == "fwup devpath is invalid: \"\""
+    assert output =~ "fwup devpath is invalid"
   end
 end
