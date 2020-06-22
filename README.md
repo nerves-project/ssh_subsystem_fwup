@@ -62,7 +62,7 @@ fwup: Upgrading partition B
 Success!
 Elapsed time: 4.720 s
 Disconnected from 172.31.207.89 port 22
-````
+```
 
 Note that the `.local` address assumes that mDNS has been configured on the
 device and that mDNS works on your network and OS. That's not always the case
