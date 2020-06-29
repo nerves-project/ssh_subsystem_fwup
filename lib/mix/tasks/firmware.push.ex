@@ -54,7 +54,13 @@ defmodule Mix.Tasks.Firmware.Push do
     firmware_path = firmware(opts)
     port = opts[:port] || 22
     _ = Application.ensure_all_started(:ssh)
-    connect_opts = [silently_accept_hosts: true, user_dir: user_dir]
+
+    connect_opts = [
+      key_cb: {NervesSSH.Agent, []},
+      silently_accept_hosts: true,
+      user_dir: user_dir,
+      auth_methods: 'publickey'
+    ]
 
     connect_opts =
       if passphrase = opts[:passphrase] do
@@ -66,6 +72,8 @@ defmodule Mix.Tasks.Firmware.Push do
       else
         connect_opts
       end
+
+    IO.puts("CONNECTING")
 
     connection_ref =
       case :ssh.connect(to_charlist(ip), port, connect_opts) do
@@ -80,6 +88,8 @@ defmodule Mix.Tasks.Firmware.Push do
         {:error, reason} ->
           Mix.raise("couldn't connected to #{ip}: #{inspect(reason)}")
       end
+
+    IO.inspect(connection_ref, label: "CONNECTION REF")
 
     {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, :infinity)
 
