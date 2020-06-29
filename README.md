@@ -42,7 +42,35 @@ will look something like:
 
 You will likely have many more options passed to the `ssh.daemon`.
 
-## Uploading firmware
+## Uploading firmware via mix
+
+The easiest way to push updates during development is to let `mix` do it for
+you:
+
+```bash
+MIX_TARGET=rpi0 mix firmware.push nerves.local
+```
+
+Substitute `rpi0` above for your target and `nerves.local` for the IP address or
+DNS name of the device that you want to update.
+
+The `firmware.push` command takes several arguments:
+
+* `--firmware` - The path to a fw file.
+* `--passphrase` - The passphrase on the SSH private key (if any)
+* `--port` - The TCP port number to use to connect to the target.
+* `--target` - The target string of the target configuration.
+* `--user-dir` - The path to where your id_rsa id_rsa.pub key files are located.
+
+Run `mix help firmware.push` for more information.
+
+If you have a passphrase on your ssh key, you'll probably not want to use `mix
+firmware.push` since you need to type it in the clear. Regular commandline `ssh`
+can push firmware as well and is also desirable if you want to integrate
+firmware updates into other scripts or systems like Ansible. Here's how you
+generate a shell script with the proper ssh invocation:
+
+## Uploading firmware via ssh
 
 To upload a firmware file, go to your Nerves project and run:
 
