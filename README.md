@@ -1,6 +1,6 @@
 # SSHSubsystemFwup
 
-[![CircleCI](https://circleci.com/gh/nerves-project/ssh_subsystem_fwup/tree/master.svg?style=svg)](https://circleci.com/gh/nerves-project/ssh_subsystem_fwup/tree/master)
+[![CircleCI](https://circleci.com/gh/nerves-project/ssh_subsystem_fwup/tree/main.svg?style=svg)](https://circleci.com/gh/nerves-project/ssh_subsystem_fwup/tree/main)
 [![Hex version](https://img.shields.io/hexpm/v/ssh_subsystem_fwup.svg "Hex version")](https://hex.pm/packages/ssh_subsystem_fwup)
 
 This library provides an [ssh](https://en.wikipedia.org/wiki/Secure_Shell)
