@@ -30,15 +30,16 @@ defmodule SSHSubsystemFwupTest do
   def do_ssh(payload) do
     connect_opts = [silently_accept_hosts: true, user: 'user', password: 'password']
 
-    with {:ok, connection_ref} <- :ssh.connect(:localhost, @port, connect_opts),
-         {:ok, channel_id} <- :ssh_connection.session_channel(connection_ref, 500),
-         :success <- :ssh_connection.subsystem(connection_ref, channel_id, 'fwup', 500),
-         :ok <- :ssh_connection.send(connection_ref, channel_id, payload),
-         :ok <- :ssh_connection.send_eof(connection_ref, channel_id) do
-      wait_for_complete(connection_ref, channel_id, {"", -1})
-    else
-      result -> {"Failed: #{inspect(result)}", -1}
-    end
+    {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
+    {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
+    :success = :ssh_connection.subsystem(connection_ref, channel_id, 'fwup', 500)
+
+    # Sending data can fail if the remote side closes first. That's what happens
+    # when the remote reports a fatal error and that's expected.
+    _ = :ssh_connection.send(connection_ref, channel_id, payload)
+    _ = :ssh_connection.send_eof(connection_ref, channel_id)
+
+    wait_for_complete(connection_ref, channel_id, {"", -1})
   end
 
   defp wait_for_complete(connection_ref, channel_id, {result, exit_status} = rc) do
