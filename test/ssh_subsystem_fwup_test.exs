@@ -1,5 +1,5 @@
 defmodule SSHSubsystemFwupTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   import ExUnit.CaptureLog
   # doctest SSHSubsystemFwup
 
