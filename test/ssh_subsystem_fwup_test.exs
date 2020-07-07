@@ -14,7 +14,6 @@ defmodule SSHSubsystemFwupTest do
     {:ok, ref} =
       :ssh.daemon(@port, [
         {:max_sessions, 1},
-        {:id_string, :random},
         {:user_passwords, [{'user', 'password'}]},
         {:system_dir, 'test/fixtures'},
         {:subsystems, [SSHSubsystemFwup.subsystem_spec(options)]}
