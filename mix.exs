@@ -1,7 +1,7 @@
 defmodule SSHSubsystemFwup.MixProject do
   use Mix.Project
 
-  @version "0.4.4"
+  @version "0.5.0"
   @source_url "https://github.com/nerves-project/ssh_subsystem_fwup"
 
   def project do
