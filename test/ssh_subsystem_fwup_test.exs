@@ -3,6 +3,8 @@ defmodule SSHSubsystemFwupTest do
   import ExUnit.CaptureLog
   # doctest SSHSubsystemFwup
 
+  alias SSHSubsystemFwup.Support.Fwup
+
   @port 10123
   @tmpdir Path.join(System.tmp_dir!(), "ssh_subsystem_fwup")
 
@@ -73,7 +75,7 @@ defmodule SSHSubsystemFwupTest do
     File.touch!(options[:devpath])
     start_sshd(options)
 
-    fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware()
+    fw_contents = Fwup.create_firmware()
 
     capture_log(fn ->
       {output, exit_status} = do_ssh(fw_contents)
@@ -94,7 +96,7 @@ defmodule SSHSubsystemFwupTest do
     File.touch!(options[:devpath])
 
     start_sshd(options)
-    fw_contents = SSHSubsystemFwup.Support.Fwup.create_corrupt_firmware()
+    fw_contents = Fwup.create_corrupt_firmware()
 
     capture_log(fn ->
       {_output, exit_status} = do_ssh(fw_contents)
@@ -110,7 +112,7 @@ defmodule SSHSubsystemFwupTest do
     File.touch!(options[:devpath])
 
     start_sshd(options)
-    fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware(task: "complete")
+    fw_contents = Fwup.create_firmware(task: "complete")
 
     capture_log(fn ->
       {output, exit_status} = do_ssh(fw_contents)
@@ -128,7 +130,7 @@ defmodule SSHSubsystemFwupTest do
 
   test "unspecified devpath is an error" do
     start_sshd([])
-    fw_contents = SSHSubsystemFwup.Support.Fwup.create_firmware(task: "complete")
+    fw_contents = Fwup.create_firmware(task: "complete")
 
     {output, exit_status} = do_ssh(fw_contents)
 

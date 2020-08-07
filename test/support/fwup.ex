@@ -81,7 +81,7 @@ defmodule SSHSubsystemFwup.Support.Fwup do
     """
   end
 
-  defp random_string do
+  defp random_string() do
     Integer.to_string(:rand.uniform(0x100000000), 36) |> String.downcase()
   end
 end
