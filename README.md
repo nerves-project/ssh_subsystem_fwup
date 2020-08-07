@@ -4,29 +4,34 @@
 [![Hex version](https://img.shields.io/hexpm/v/ssh_subsystem_fwup.svg "Hex version")](https://hex.pm/packages/ssh_subsystem_fwup)
 
 This library provides an [ssh](https://en.wikipedia.org/wiki/Secure_Shell)
-subsystem that applies Nerves "over-the-air" firmware updates. This is a
-breaking update to
-[`ssh_subsystem_fwup`](https://github.com/nerves-project/ssh_subsystem_fwup)
-that extracts the update service to be a `:ssh.daemon/1` spec. This removes
-quite a bit of code and makes it possible to:
+subsystem that applies Nerves "over-the-air" firmware updates. It is an
+alternative to
+[`nerves_firmware_ssh`](https://github.com/nerves-project/nerves_firmware_ssh)
+that extracts the update service to a `:ssh.daemon/1` spec. This trims down the
+responsibilities of the library and makes it possible to:
 
-1. More easily customize ssh authentication (for example, password-based auth is
-   possible)
+1. Customize ssh authentication (for example, password-based auth is possible)
 2. Handle host keys differently and more securely
 3. Run firmware updates on port 22 with other ssh services
 
 In addition, the protocol for sending updates over ssh has been simplified. If
-you're coming from `ssh_subsystem_fwup`, you'll likely have used the
-`upload.sh` script so this will be transparent. If you wrote your own script,
-you'll need to delete some lines of code from it.
+you're coming from `nerves_firmware_ssh`, you'll have used the `upload.sh`
+script or `mix upload`. This library provides the same interface. If using
+`upload.sh`, you will need to rerun `mix firmware.gen.script` since the script
+has changed.
 
 ## Installation
 
-First, add `ssh_subsystem_fwup` to your list of dependencies in `mix.exs`:
+The easiest installation is to use
+[`nerves_ssh`](https://github.com/nerves-project/nerves_ssh) and have it bring
+in this library as a dependency. See that project for details.
+
+However, if you do not want to use `nerves_ssh`, here's what do do. First, add
+the dependency:
 
 ```elixir
 def deps do
-  [{:ssh_subsystem_fwup, "~> 0.4.0"}]
+  [{:ssh_subsystem_fwup, "~> 0.5.0"}]
 end
 ```
 
@@ -44,16 +49,25 @@ You will likely have many more options passed to the `ssh.daemon`.
 
 ## Uploading firmware
 
-To upload a firmware file, go to your Nerves project and run:
+There are two ways of uploading firmware. The first is to run:
+
+```shell
+mix upload
+```
+
+That doesn't work for everyone due to `ssh` authentication preferences. The
+alternative is to use commandline `ssh`. For convenience, `ssh_subsystem_fwup`
+can generate a script that makes this easier. Go to your Nerves project
+directory and run:
 
 ```shell
 mix firmware.gen.script
 ```
 
-This should create an `upload.sh` script that has a few conveniences to make
-uploading Nerves firmware easier. You can frequently run `./upload.sh` without
-arguments. To specify which device to upload to, pass the devices hostname as
-the first argument. For example:
+This should create an `upload.sh` script. Frequently when starting out, you can
+run `./upload.sh` without arguments since it will guess that it's supposed to
+upload to `nerves.local`. To specify a device to upload to, pass the device's
+hostname as the first argument. For example:
 
 ```shell
 $ ./upload.sh nerves-1234.local
