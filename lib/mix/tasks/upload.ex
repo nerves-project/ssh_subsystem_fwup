@@ -96,8 +96,8 @@ defmodule Mix.Tasks.Upload do
 
     Process.flag(:trap_exit, true)
 
-    spawn_link(fn -> send_data(port, fd) end)
-    port_read(port)
+    sender_pid = spawn_link(fn -> send_data(port, fd) end)
+    port_read(port, sender_pid)
   end
 
   defp firmware(opts) do
@@ -142,17 +142,21 @@ defmodule Mix.Tasks.Upload do
     end
   end
 
-  defp port_read(port) do
+  defp port_read(port, sender_pid) do
     receive do
       {^port, {:data, data}} ->
         IO.write(data)
-        port_read(port)
+        port_read(port, sender_pid)
 
       {^port, {:exit_status, 0}} ->
         :ok
 
       {^port, {:exit_status, status}} ->
         Mix.raise("ssh failed with status #{status}")
+
+      {:EXIT, ^sender_pid, :normal} ->
+        # All data has been sent
+        port_read(port, sender_pid)
 
       {:EXIT, ^port, reason} ->
         Mix.raise("""
