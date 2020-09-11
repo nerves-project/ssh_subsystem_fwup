@@ -4,6 +4,34 @@ defmodule SSHSubsystemFwup.MixProject do
   @version "0.5.0"
   @source_url "https://github.com/nerves-project/ssh_subsystem_fwup"
 
+  with {:ok, path} <- File.cwd(),
+       true <- String.ends_with?(path, "deps/ssh_subsystem_fwup"),
+       root <- String.replace(path, "deps/ssh_subsystem_fwup", ""),
+       script_path <- Path.join(root, "upload.sh"),
+       true <- File.exists?(script_path),
+       {line, line_num} <-
+         File.stream!(script_path)
+         |> Stream.with_index(1)
+         |> Enum.find(fn {line, _i} -> line =~ ~r/-p 8989.*nerves_firmware_ssh/ end) do
+    msg = """
+    You have an incompatible version of the upload.sh script which will attempt
+    to update using SSH subsystem nerves_firmware_ssh on port 8989
+
+    Please update the script by regenerating with:
+
+      #{IO.ANSI.cyan()}mix firmware.gen.script#{IO.ANSI.default_color()}
+
+    Or manually update by changing #{script_path}:#{line_num} ¬
+
+      #{IO.ANSI.red()}- #{String.trim(line)}
+      #{IO.ANSI.green()}+ cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION fwup#{
+      IO.ANSI.default_color()
+    }
+    """
+
+    :elixir_errors.io_warn(line_num, script_path, msg, msg)
+  end
+
   def project do
     [
       app: :ssh_subsystem_fwup,
