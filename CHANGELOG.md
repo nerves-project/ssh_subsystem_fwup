@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.1
+
+This releases adds a check for old `upload.sh` scripts to warn users that
+they'll need to update it.
+
 ## v0.5.0
 
 Initial release.
