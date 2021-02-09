@@ -165,7 +165,8 @@ defmodule Mix.Tasks.Upload do
         This is known to happen when ssh interactively prompts you for a
         passphrase. The following are workarounds:
 
-        1. Use the ssh-agent to hold your credentials.
+        1. Load your private key identity into the ssh agent by running
+           `ssh-add`
 
         2. Use the `upload.sh` script. Create one by running
            `mix firmware.gen.script`.
