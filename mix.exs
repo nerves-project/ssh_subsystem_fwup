@@ -27,6 +27,11 @@ defmodule SSHSubsystemFwup.MixProject do
       #{IO.ANSI.green()}+ cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION fwup#{
       IO.ANSI.default_color()
     }
+
+    NOTE: If you plan to do an over the air update of your system (as explained
+    at https://github.com/nerves-project/nerves_ssh#upgrade-from-nervesfirmwaressh)
+    Then you should not update your upload.sh script until after you send an
+    updated firmware image to your device.
     """
 
     :elixir_errors.io_warn(line_num, script_path, msg, msg)
