@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.2
+
+* Improvements
+  * Improve instructions for how to update from `nerves_firmware_ssh`
+
 ## v0.5.1
 
 This releases adds a check for old `upload.sh` scripts to warn users that
