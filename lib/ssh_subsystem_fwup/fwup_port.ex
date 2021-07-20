@@ -7,10 +7,10 @@ defmodule SSHSubsystemFwup.FwupPort do
 
   @spec open_port(SSHSubsystemFwup.options()) :: port()
   def open_port(options) do
-    fwup_path = Keyword.fetch!(options, :fwup_path)
-    fwup_extra_options = Keyword.fetch!(options, :fwup_extra_options)
-    devpath = Keyword.fetch!(options, :devpath)
-    task = Keyword.fetch!(options, :task)
+    fwup_path = options[:fwup_path]
+    fwup_extra_options = options[:fwup_extra_options]
+    devpath = options[:devpath]
+    task = options[:task]
 
     args = [
       "--exit-handshake",
