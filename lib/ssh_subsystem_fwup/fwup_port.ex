@@ -5,6 +5,7 @@ defmodule SSHSubsystemFwup.FwupPort do
 
   # Caller must     Process.flag(:trap_exit, true)
 
+  @spec open_port(SSHSubsystemFwup.options()) :: port()
   def open_port(options) do
     fwup_path = Keyword.fetch!(options, :fwup_path)
     fwup_extra_options = Keyword.fetch!(options, :fwup_extra_options)

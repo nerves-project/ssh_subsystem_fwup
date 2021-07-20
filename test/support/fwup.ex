@@ -14,15 +14,12 @@ defmodule SSHSubsystemFwup.Support.Fwup do
   takes little effort to avoid collisions on its own.
   """
 
-  # @after_compile {__MODULE__, :compiler_options}
-
-  # def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
-
   @doc """
-  Create an unsigned firmware image, and return the path to that image.
+  Create an unsigned firmware image and return it as a binary
   """
+  @spec create_firmware(keyword()) :: binary()
   def create_firmware(options \\ []) do
-    out_path = tmp_path()
+    out_path = tmp_path(".fw")
     conf_path = make_conf(options)
 
     {_, 0} =
@@ -42,19 +39,20 @@ defmodule SSHSubsystemFwup.Support.Fwup do
   end
 
   @doc """
-  Create a corrupt firmware image
+  Just like create_firmware, but corrupted
   """
+  @spec create_corrupt_firmware(keyword()) :: nonempty_binary()
   def create_corrupt_firmware(options \\ []) do
     <<start::binary-size(32), finish::binary>> = create_firmware(options)
     <<start::binary, 1, finish::binary>>
   end
 
-  defp tmp_path() do
-    Path.join([System.tmp_dir(), "#{random_string()}.conf"])
+  defp tmp_path(suffix) do
+    Path.join([System.tmp_dir(), "#{random_string()}#{suffix}"])
   end
 
   defp make_conf(options) do
-    path = tmp_path()
+    path = tmp_path(".conf")
     File.write!(path, build_conf_contents(options))
     path
   end
