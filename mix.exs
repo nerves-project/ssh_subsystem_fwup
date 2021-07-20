@@ -24,9 +24,7 @@ defmodule SSHSubsystemFwup.MixProject do
     Or manually update by changing #{script_path}:#{line_num} ¬
 
       #{IO.ANSI.red()}- #{String.trim(line)}
-      #{IO.ANSI.green()}+ cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION fwup#{
-      IO.ANSI.default_color()
-    }
+      #{IO.ANSI.green()}+ cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION fwup#{IO.ANSI.default_color()}
 
     NOTE: If you plan to do an over the air update of your system (as explained
     at https://github.com/nerves-project/nerves_ssh#upgrade-from-nervesfirmwaressh)
