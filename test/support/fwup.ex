@@ -71,8 +71,13 @@ defmodule SSHSubsystemFwup.Support.Fwup do
     contents = "#{message}"
     }
 
+    file-resource test2.txt {
+      contents = "#{message}"
+    }
+
     task #{task} {
       on-resource test.txt { raw_write(0) }
+      on-resource test2.txt { raw_write(1, "cipher=aes-cbc-plain", "secret=\\${SUPER_SECRET:-0000000000000000000000000000000000000000000000000000000000000000}")}
     }
     """
   end
