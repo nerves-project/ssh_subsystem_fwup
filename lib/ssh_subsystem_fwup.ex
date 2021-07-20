@@ -37,6 +37,7 @@ defmodule SSHSubsystemFwup do
 
   * `:devpath` - path for fwup to upgrade (Required)
   * `:fwup_path` - path to the fwup firmware update utility
+  * `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
   * `:fwup_extra_options` - additional options to pass to fwup like for setting
     public keys
   * `:success_callback` - an MFA to call when a firmware update completes
@@ -47,6 +48,7 @@ defmodule SSHSubsystemFwup do
   @type options :: [
           devpath: Path.t(),
           fwup_path: Path.t(),
+          fwup_env: [{String.t(), String.t()}],
           fwup_extra_options: [String.t()],
           task: String.t(),
           success_callback: mfa()
@@ -84,6 +86,7 @@ defmodule SSHSubsystemFwup do
     [
       devpath: "",
       fwup_path: System.find_executable("fwup"),
+      fwup_env: [],
       fwup_extra_options: [],
       task: "upgrade",
       success_callback: {Nerves.Runtime, :reboot, []}

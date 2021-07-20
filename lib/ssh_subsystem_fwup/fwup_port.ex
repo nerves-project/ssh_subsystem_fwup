@@ -8,6 +8,7 @@ defmodule SSHSubsystemFwup.FwupPort do
   @spec open_port(SSHSubsystemFwup.options()) :: port()
   def open_port(options) do
     fwup_path = options[:fwup_path]
+    fwup_env = options[:fwup_env]
     fwup_extra_options = options[:fwup_extra_options]
     devpath = options[:devpath]
     task = options[:task]
@@ -24,6 +25,7 @@ defmodule SSHSubsystemFwup.FwupPort do
 
     Port.open({:spawn_executable, fwup_path}, [
       {:args, args},
+      {:env, fwup_env},
       :use_stdio,
       :binary
     ])
