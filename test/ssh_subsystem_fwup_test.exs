@@ -99,7 +99,7 @@ defmodule SSHSubsystemFwupTest do
     options =
       [
         fwup_env: [
-          {'SUPER_SECRET', '1234567890123456789012345678901234567890123456789012345678901234'}
+          {"SUPER_SECRET", "1234567890123456789012345678901234567890123456789012345678901234"}
         ]
       ] ++
         default_options(context.test)
