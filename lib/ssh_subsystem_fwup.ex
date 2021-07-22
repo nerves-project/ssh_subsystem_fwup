@@ -73,7 +73,7 @@ defmodule SSHSubsystemFwup do
               options: []
   end
 
-  @impl true
+  @impl :ssh_client_channel
   def init(options) do
     combined_options = Keyword.merge(default_options(), options)
 
@@ -90,7 +90,7 @@ defmodule SSHSubsystemFwup do
     ]
   end
 
-  @impl true
+  @impl :ssh_client_channel
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
     devpath = state.options[:devpath]
 
@@ -136,7 +136,7 @@ defmodule SSHSubsystemFwup do
     {:ok, state}
   end
 
-  @impl true
+  @impl :ssh_client_channel
   def handle_ssh_msg({:ssh_cm, _cm, {:data, _channel_id, 0, data}}, state) do
     FwupPort.send_data(state.fwup, data)
     {:ok, state}
@@ -169,12 +169,12 @@ defmodule SSHSubsystemFwup do
     {:ok, state}
   end
 
-  @impl true
+  @impl :ssh_client_channel
   def handle_call(_request, _from, state) do
     {:reply, :error, state}
   end
 
-  @impl true
+  @impl :ssh_client_channel
   def handle_cast(_message, state) do
     {:noreply, state}
   end
@@ -189,12 +189,12 @@ defmodule SSHSubsystemFwup do
 
   defp run_callback(_rc, _mfa), do: :ok
 
-  @impl true
+  @impl :ssh_client_channel
   def terminate(_reason, _state) do
     :ok
   end
 
-  @impl true
+  @impl :ssh_client_channel
   def code_change(_old, state, _extra) do
     {:ok, state}
   end
