@@ -39,7 +39,7 @@ defmodule SSHSubsystemFwup.Support.Fwup do
   @doc """
   Just like create_firmware, but corrupted
   """
-  @spec create_corrupt_firmware(keyword()) :: nonempty_binary()
+  @spec create_corrupt_firmware(keyword()) :: <<_::8, _::_*8>>
   def create_corrupt_firmware(options \\ []) do
     <<start::binary-size(32), finish::binary>> = create_firmware(options)
     <<start::binary, 1, finish::binary>>
