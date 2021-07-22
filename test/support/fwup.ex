@@ -1,5 +1,3 @@
-# Code.compiler_options(ignore_module_conflict: true)
-
 defmodule SSHSubsystemFwup.Support.Fwup do
   @moduledoc """
   This module is intended to help with testing and development
