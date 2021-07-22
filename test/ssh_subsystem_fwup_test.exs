@@ -212,6 +212,52 @@ defmodule SSHSubsystemFwupTest do
     {output, exit_status} = do_ssh(fw_contents)
 
     assert exit_status != 0
-    assert output =~ "fwup devpath is invalid"
+    assert output =~ "Error: Invalid device path: \"\""
+  end
+
+  def precheck_custom_task(options) do
+    {:ok, options}
+  end
+
+  def precheck_fail() do
+    :error
+  end
+
+  test "precheck can change the task to run", context do
+    options =
+      default_options(context.test) ++
+        [precheck: {__MODULE__, :precheck_custom_task, [[task: "custom"]]}]
+
+    File.touch!(options[:devpath])
+
+    start_sshd(options)
+    fw_contents = Fwup.create_firmware(task: "custom")
+
+    capture_log(fn ->
+      {output, exit_status} = do_ssh(fw_contents)
+
+      assert exit_status == 0
+      assert output =~ "Success!"
+    end)
+
+    # Check that the success function was called
+    assert_receive :success
+
+    # Check that the update was applied
+    assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
+  end
+
+  test "precheck can stop an update", context do
+    options = default_options(context.test) ++ [precheck: {__MODULE__, :precheck_fail, []}]
+
+    File.touch!(options[:devpath])
+
+    start_sshd(options)
+    fw_contents = Fwup.create_firmware()
+
+    {output, exit_status} = do_ssh(fw_contents)
+
+    assert exit_status != 0
+    assert output =~ "Error: precheck failed"
   end
 end

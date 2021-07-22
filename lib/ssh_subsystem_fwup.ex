@@ -40,6 +40,9 @@ defmodule SSHSubsystemFwup do
   * `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
   * `:fwup_extra_options` - additional options to pass to fwup like for setting
     public keys
+  * `:precheck_callback` - an MFA to call when there's a connection. If specified,
+    the callback will be passed the username and the current set of options. If allowed,
+    it should return `{:ok, new_options}`. Any other return value closes the connection.
   * `:success_callback` - an MFA to call when a firmware update completes
     successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
   * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
@@ -50,6 +53,7 @@ defmodule SSHSubsystemFwup do
           fwup_path: Path.t(),
           fwup_env: [{String.t(), String.t()}],
           fwup_extra_options: [String.t()],
+          precheck_callback: mfa() | nil,
           task: String.t(),
           success_callback: mfa()
         ]
@@ -88,6 +92,7 @@ defmodule SSHSubsystemFwup do
       fwup_path: System.find_executable("fwup"),
       fwup_env: [],
       fwup_extra_options: [],
+      precheck_callback: nil,
       task: "upgrade",
       success_callback: {Nerves.Runtime, :reboot, []}
     ]
@@ -95,17 +100,17 @@ defmodule SSHSubsystemFwup do
 
   @impl :ssh_client_channel
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
-    devpath = state.options[:devpath]
-
-    if is_binary(devpath) and File.exists?(devpath) do
+    with {:ok, options} <- precheck(state.options[:precheck], state.options),
+         :ok <- check_devpath(options[:devpath]) do
       Logger.debug("ssh_subsystem_fwup: starting fwup")
-      fwup = FwupPort.open_port(state.options)
+      fwup = FwupPort.open_port(options)
       {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
     else
-      _ = :ssh_connection.send(cm, channel_id, "fwup devpath is invalid: #{inspect(devpath)}")
-      :ssh_connection.exit_status(cm, channel_id, 1)
-      :ssh_connection.close(cm, channel_id)
-      {:stop, :normal, state}
+      {:error, reason} ->
+        _ = :ssh_connection.send(cm, channel_id, "Error: #{reason}")
+        :ssh_connection.exit_status(cm, channel_id, 1)
+        :ssh_connection.close(cm, channel_id)
+        {:stop, :normal, state}
     end
   end
 
@@ -200,5 +205,23 @@ defmodule SSHSubsystemFwup do
   @impl :ssh_client_channel
   def code_change(_old, state, _extra) do
     {:ok, state}
+  end
+
+  defp check_devpath(devpath) do
+    if is_binary(devpath) and File.exists?(devpath) do
+      :ok
+    else
+      {:error, "Invalid device path: #{inspect(devpath)}"}
+    end
+  end
+
+  defp precheck(nil, options), do: {:ok, options}
+
+  defp precheck({m, f, a}, options) do
+    case apply(m, f, a) do
+      {:ok, new_options} -> {:ok, Keyword.merge(options, new_options)}
+      {:error, reason} -> {:error, reason}
+      e -> {:error, "precheck failed for unknown reason - #{inspect(e)}"}
+    end
   end
 end
