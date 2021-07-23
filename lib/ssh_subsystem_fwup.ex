@@ -81,7 +81,11 @@ defmodule SSHSubsystemFwup do
 
   @impl :ssh_client_channel
   def init(options) do
-    combined_options = Keyword.merge(default_options(), options)
+    # Combine the default options, any application environment options and finally subsystem options
+    combined_options =
+      default_options()
+      |> Keyword.merge(Application.get_all_env(:ssh_subsystem_fwup))
+      |> Keyword.merge(options)
 
     {:ok, %State{options: combined_options}}
   end
