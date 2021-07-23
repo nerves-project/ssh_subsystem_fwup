@@ -261,4 +261,28 @@ defmodule SSHSubsystemFwupTest do
     assert exit_status != 0
     assert output =~ "Error: precheck failed"
   end
+
+  test "Application environment can change the task to run", context do
+    options = default_options(context.test)
+
+    File.touch!(options[:devpath])
+
+    start_sshd(options)
+    fw_contents = Fwup.create_firmware(task: "app_env")
+
+    capture_log(fn ->
+      Application.put_env(:ssh_subsystem_fwup, :task, "app_env")
+      {output, exit_status} = do_ssh(fw_contents)
+      Application.delete_env(:ssh_subsystem_fwup, :task)
+
+      assert output =~ "Success!"
+      assert exit_status == 0
+    end)
+
+    # Check that the success function was called
+    assert_receive :success
+
+    # Check that the update was applied
+    assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
+  end
 end

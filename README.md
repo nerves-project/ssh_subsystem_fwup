@@ -93,6 +93,48 @@ equivalent:
 cat $firmware | ssh -s $nerves_device fwup
 ```
 
+## Configuration
+
+The default options should satisfy most use cases, but it's possible to alter
+how updates are applied by passing options when creating the SSH subsystem spec
+(see `SSHSubsystemFwup.subsystem_spec/1`) or by setting the application
+environment.
+
+Here's an example of what the code looks like when setting options via a
+subsystem spec:
+
+```elixir
+      :ssh.daemon(@port, [
+        ...
+        {:subsystems, [SSHSubsystemFwup.subsystem_spec(task: "my_upgrade_task")]}
+      ])
+```
+
+If another library starts the SSH deamon for you, like
+[`nerves_ssh`](https://hex.pm/packages/nerves_ssh), it might be more convenient
+to set options via the application environment. `ssh_subsystem_fwup` uses its
+defaults first, then those from the application environment and finally those in
+the subsystem spec, so as long as the options you specify in the application
+environment aren't overridden, you'll be fine. Here's an example:
+
+```elixir
+config :ssh_subsystem_fwup, precheck_callback: {MyProject, :precheck, []}
+```
+
+The following options are available:
+
+* `:devpath` - path for fwup to upgrade (Required)
+* `:fwup_path` - path to the fwup firmware update utility
+* `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
+* `:fwup_extra_options` - additional options to pass to fwup like for setting
+  public keys
+* `:precheck_callback` - an MFA to call when there's a connection. If specified,
+  the callback will be passed the username and the current set of options. If allowed,
+  it should return `{:ok, new_options}`. Any other return value closes the connection.
+* `:success_callback` - an MFA to call when a firmware update completes
+  successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
+* `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
+
 ## License
 
 All source code is licensed under the
