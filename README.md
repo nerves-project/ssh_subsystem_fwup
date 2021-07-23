@@ -31,7 +31,7 @@ the dependency:
 
 ```elixir
 def deps do
-  [{:ssh_subsystem_fwup, "~> 0.5.0"}]
+  [{:ssh_subsystem_fwup, "~> 0.6.0"}]
 end
 ```
 

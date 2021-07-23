@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+* New features
+  * Added a `:precheck_callback` option to support updating firmware update
+    options at runtime and to stop updates from happening at critical times
+  * Added a `:fwup_env` option for passing OS environment variables to fwup
+  * Support setting default system-wide options in the application config in
+    addition to the subsystem spec. The subsystem spec takes precedence.
+
 ## v0.5.2
 
 * Improvements
