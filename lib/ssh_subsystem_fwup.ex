@@ -70,20 +70,11 @@ defmodule SSHSubsystemFwup do
     {'fwup', {__MODULE__, options}}
   end
 
-  defmodule State do
-    @moduledoc false
-    defstruct state: :running_fwup,
-              id: nil,
-              cm: nil,
-              fwup: nil,
-              options: []
-  end
-
   @impl :ssh_client_channel
   def init(options) do
     combined_options = Keyword.merge(default_options(), options)
 
-    {:ok, %State{options: combined_options}}
+    {:ok, %{state: :running_fwup, id: nil, cm: nil, fwup: nil, options: combined_options}}
   end
 
   defp default_options() do
