@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Upload do
 
     Mix.shell().info("""
     Path: #{firmware_path}
-
+    #{maybe_print_firmware_uuid(firmware_path)}
     Uploading to #{ip}...
     """)
 
@@ -205,5 +205,15 @@ defmodule Mix.Tasks.Upload do
 
       `mix upload nerves-1234.local`
     """
+  end
+
+  defp maybe_print_firmware_uuid(fw_path) do
+    fwup = System.find_executable("fwup")
+    {uuid, 0} = System.cmd(fwup, ["-m", "--metadata-key", "meta-uuid", "-i", fw_path])
+    "UUID: #{uuid}\n"
+  catch
+    # fwup may not be on the host or something else failed, but continue
+    # on as normal by returning an empty line
+    _, _ -> ""
   end
 end
