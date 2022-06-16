@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.1
+
+* Improvements
+  * `mix upload` now attempts to display the UUID of the firmware as well
+
 ## v0.6.0
 
 * New features
