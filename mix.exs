@@ -39,7 +39,7 @@ defmodule SSHSubsystemFwup.MixProject do
     [
       app: :ssh_subsystem_fwup,
       version: @version,
-      elixir: "~> 1.9",
+      elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
