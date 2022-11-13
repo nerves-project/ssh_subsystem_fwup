@@ -128,10 +128,11 @@ The following options are available:
 * `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
 * `:fwup_extra_options` - additional options to pass to fwup like for setting
   public keys
-* `:precheck_callback` - an MFA to call when there's a connection. If specified,
-  the callback will be passed the username and the current set of options. If allowed,
-  it should return `{:ok, new_options}`. Any other return value closes the connection.
-* `:success_callback` - an MFA to call when a firmware update completes
+* `:precheck_callback` - an MFArgs to call when there's a connection. If
+  specified, the callback will be passed the username and the current set of
+  options. If allowed, it should return `{:ok, new_options}`. Any other return
+  value closes the connection.
+* `:success_callback` - an MFArgs to call when a firmware update completes
   successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
 * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
 
