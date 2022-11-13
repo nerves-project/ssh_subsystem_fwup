@@ -32,6 +32,11 @@ defmodule SSHSubsystemFwup do
   device-specific.
   """
 
+  @behaviour :ssh_client_channel
+
+  @typedoc false
+  @type mfargs() :: {module(), function(), [any()]}
+
   @typedoc """
   Options:
 
@@ -40,22 +45,22 @@ defmodule SSHSubsystemFwup do
   * `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
   * `:fwup_extra_options` - additional options to pass to fwup like for setting
     public keys
-  * `:precheck_callback` - an MFA to call when there's a connection. If specified,
-    the callback will be passed the username and the current set of options. If allowed,
-    it should return `{:ok, new_options}`. Any other return value closes the connection.
-  * `:success_callback` - an MFA to call when a firmware update completes
+  * `:precheck_callback` - an MFArgs to call when there's a connection. If
+    specified, the callback will be passed the username and the current set of
+    options. If allowed, it should return `{:ok, new_options}`. Any other
+    return value closes the connection.
+  * `:success_callback` - an MFArgs to call when a firmware update completes
     successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
   * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
   """
-  @behaviour :ssh_client_channel
   @type options :: [
           devpath: Path.t(),
           fwup_path: Path.t(),
           fwup_env: [{String.t(), String.t()}],
           fwup_extra_options: [String.t()],
-          precheck_callback: mfa() | nil,
+          precheck_callback: mfargs() | nil,
           task: String.t(),
-          success_callback: mfa()
+          success_callback: mfargs()
         ]
 
   require Logger
@@ -182,15 +187,15 @@ defmodule SSHSubsystemFwup do
     {:noreply, state}
   end
 
-  defp run_callback(0 = _rc, {m, f, a}) do
+  defp run_callback(0 = _rc, {m, f, args}) do
     # Let others know that fwup was successful. The usual operation
     # here is to reboot. Run the callback in its own process so that
     # any issues with it don't affect processing here.
-    _ = spawn(m, f, a)
+    _ = spawn(m, f, args)
     :ok
   end
 
-  defp run_callback(_rc, _mfa), do: :ok
+  defp run_callback(_rc, _mfargs), do: :ok
 
   @impl :ssh_client_channel
   def terminate(_reason, _state) do
@@ -212,8 +217,8 @@ defmodule SSHSubsystemFwup do
 
   defp precheck(nil, options), do: {:ok, options}
 
-  defp precheck({m, f, a}, options) do
-    case apply(m, f, a) do
+  defp precheck({m, f, args}, options) do
+    case apply(m, f, args) do
       {:ok, new_options} -> {:ok, Keyword.merge(options, new_options)}
       {:error, reason} -> {:error, reason}
       e -> {:error, "precheck failed for unknown reason - #{inspect(e)}"}
