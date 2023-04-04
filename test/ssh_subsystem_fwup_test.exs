@@ -202,7 +202,7 @@ defmodule SSHSubsystemFwupTest do
     assert_receive :success
 
     # Check that the update was applied
-    assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
   end
 
   test "unspecified devpath is an error" do
@@ -244,7 +244,7 @@ defmodule SSHSubsystemFwupTest do
     assert_receive :success
 
     # Check that the update was applied
-    assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
   end
 
   test "precheck can stop an update", context do
@@ -283,6 +283,6 @@ defmodule SSHSubsystemFwupTest do
     assert_receive :success
 
     # Check that the update was applied
-    assert match?(<<"Hello, world!", _::binary()>>, File.read!(options[:devpath]))
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
   end
 end
