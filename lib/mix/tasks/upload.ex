@@ -65,39 +65,88 @@ defmodule Mix.Tasks.Upload do
     Uploading to #{ip}...
     """)
 
+    user = Process.whereis(:user)
+    Process.unregister(:user)
+
+    # Take over STDIN in case SSH requires inputting password
+    stdin_port = Port.open({:spawn, "tty_sl -c -e"}, [:binary, :eof, :stream, :in])
+    _ = Application.stop(:logger)
+
+    shell = System.get_env("SHELL")
+
     # Options:
     #
     # ConnectTimeout - don't wait forever to connect
-    # PreferredAuthentications=publickey - since keyboard interactivity doesn't
-    #                                     work, don't try password entry options.
-    # -T - No pseudoterminals since they're not needed for firmware updates
-    opts = [
-      :stream,
-      :binary,
-      :exit_status,
-      :hide,
-      :use_stdio,
-      {:args,
-       [
-         "-o",
-         "ConnectTimeout=3",
-         "-o",
-         "PreferredAuthentications=publickey",
-         "-T",
-         "-s",
-         ip,
-         "fwup"
-       ]}
-    ]
+    command = "cat #{firmware_path} | #{ssh_path()} -o ConnectTimeout=3 -s #{ip} fwup"
 
-    port = Port.open({:spawn_executable, ssh_path()}, opts)
+    port =
+      Port.open({:spawn, ~s(script -q /dev/null #{shell} -c "#{command}")}, [
+        :binary,
+        :exit_status,
+        :stream,
+        :stderr_to_stdout,
+        {
+          :env,
+          # pass the whole user env
+          for({k, v} <- System.get_env(), do: {to_charlist(k), to_charlist(v)})
+        }
+      ])
 
-    fd = File.open!(firmware_path, [:read])
-
+    Process.register(user, :user)
     Process.flag(:trap_exit, true)
 
-    sender_pid = spawn_link(fn -> send_data(port, fd) end)
-    port_read(port, sender_pid)
+    shell_loop(stdin_port, port)
+
+    # Close the ports if they are still around
+    if Port.info(stdin_port), do: Port.close(stdin_port)
+    if Port.info(port), do: Port.close(port)
+    
+    :ok
+  end
+
+  defp shell_loop(stdin_port, ssh_port) do
+    receive do
+      # Route input from stdin to the command port
+      {^stdin_port, {:data, data}} ->
+        Port.command(ssh_port, data)
+        shell_loop(stdin_port, ssh_port)
+
+      # Route output from the command port to stdout
+      {^ssh_port, {:data, data}} ->
+        IO.write(data)
+        shell_loop(stdin_port, ssh_port)
+
+      # If any of the ports get closed, break out of the loop
+      {^ssh_port, :eof} ->
+        :ok
+
+      {^ssh_port, {:exit_status, 0}} ->
+        :ok
+
+      {_port, {:exit_status, status}} ->
+        Mix.raise("ssh failed with status #{status}")
+
+      {:EXIT, ^ssh_port, reason} ->
+        Mix.raise("""
+        Unexpected exit from ssh (#{inspect(reason)})
+
+        This is known to happen when ssh interactively prompts you for a
+        passphrase. The following are workarounds:
+
+        1. Load your private key identity into the ssh agent by running
+            `ssh-add`
+
+        2. Use the `upload.sh` script. Create one by running
+            `mix firmware.gen.script`.
+        """)
+
+      other ->
+        Mix.raise("""
+        Unexpected message received: #{inspect(other)}
+
+        Please open an issue so that we can fix this.
+        """)
+    end
   end
 
   defp firmware(opts) do
@@ -139,59 +188,6 @@ defmodule Mix.Tasks.Upload do
 
       path ->
         to_charlist(path)
-    end
-  end
-
-  defp port_read(port, sender_pid) do
-    receive do
-      {^port, {:data, data}} ->
-        IO.write(data)
-        port_read(port, sender_pid)
-
-      {^port, {:exit_status, 0}} ->
-        :ok
-
-      {^port, {:exit_status, status}} ->
-        Mix.raise("ssh failed with status #{status}")
-
-      {:EXIT, ^sender_pid, :normal} ->
-        # All data has been sent
-        port_read(port, sender_pid)
-
-      {:EXIT, ^port, reason} ->
-        Mix.raise("""
-        Unexpected exit from ssh (#{inspect(reason)})
-
-        This is known to happen when ssh interactively prompts you for a
-        passphrase. The following are workarounds:
-
-        1. Load your private key identity into the ssh agent by running
-           `ssh-add`
-
-        2. Use the `upload.sh` script. Create one by running
-           `mix firmware.gen.script`.
-        """)
-
-      other ->
-        Mix.raise("""
-        Unexpected message received: #{inspect(other)}
-
-        Please open an issue so that we can fix this.
-        """)
-    end
-  end
-
-  defp send_data(port, fd) do
-    case IO.binread(fd, 16384) do
-      :eof ->
-        :ok
-
-      {:error, _reason} ->
-        exit(:read_failed)
-
-      data ->
-        Port.command(port, data)
-        send_data(port, fd)
     end
   end
 
