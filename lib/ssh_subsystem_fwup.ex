@@ -101,7 +101,8 @@ defmodule SSHSubsystemFwup do
   @impl :ssh_client_channel
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
     with {:ok, options} <- precheck(state.options[:precheck_callback], state.options),
-         :ok <- check_devpath(options[:devpath]) do
+         :ok <- check_devpath(options[:devpath]),
+         :ok <- check_fwup_not_running() do
       Logger.debug("ssh_subsystem_fwup: starting fwup")
       fwup = FwupPort.open_port(options)
       {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
@@ -212,6 +213,14 @@ defmodule SSHSubsystemFwup do
       :ok
     else
       {:error, "Invalid device path: #{inspect(devpath)}"}
+    end
+  end
+
+  defp check_fwup_not_running() do
+    if Enum.any?(Port.list(), &("#{Port.info(&1)[:name]}" =~ ~r/fwup/)) do
+      {:error, "update already in progress"}
+    else
+      :ok
     end
   end
 

@@ -23,7 +23,7 @@ defmodule SSHSubsystemFwupTest do
   def start_sshd(options) do
     {:ok, ref} =
       :ssh.daemon(@port, [
-        {:max_sessions, 1},
+        {:max_sessions, options[:max_sessions] || 1},
         {:user_passwords, [{'user', 'password'}]},
         {:system_dir, 'test/fixtures'},
         {:subsystems, [SSHSubsystemFwup.subsystem_spec(options)]}
@@ -284,5 +284,21 @@ defmodule SSHSubsystemFwupTest do
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
+  end
+
+  test "does not allow more than one update at a time", context do
+    options = default_options(context.test) |> Keyword.put(:max_sessions, 2)
+    File.touch!(options[:devpath])
+    start_sshd(options)
+
+    large_fw = Fwup.create_firmware(message: :binary.copy("a", 24 * 1024 * 1024))
+    fw_contents = Fwup.create_firmware()
+
+    {:ok, t} = Task.start(fn -> do_ssh(large_fw) end)
+    {output, exit_status} = do_ssh(fw_contents)
+
+    assert exit_status != 0
+    assert output =~ "Error: update already in progress"
+    Process.exit(t, :kill)
   end
 end
