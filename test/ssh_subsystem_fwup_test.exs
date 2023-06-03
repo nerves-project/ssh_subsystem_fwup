@@ -24,8 +24,8 @@ defmodule SSHSubsystemFwupTest do
     {:ok, ref} =
       :ssh.daemon(@port, [
         {:max_sessions, 1},
-        {:user_passwords, [{'user', 'password'}]},
-        {:system_dir, 'test/fixtures'},
+        {:user_passwords, [{~c"user", ~c"password"}]},
+        {:system_dir, ~c"test/fixtures"},
         {:subsystems, [SSHSubsystemFwup.subsystem_spec(options)]}
       ])
 
@@ -38,11 +38,11 @@ defmodule SSHSubsystemFwupTest do
   end
 
   def do_ssh(payload) do
-    connect_opts = [silently_accept_hosts: true, user: 'user', password: 'password']
+    connect_opts = [silently_accept_hosts: true, user: ~c"user", password: ~c"password"]
 
     {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
     {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
-    :success = :ssh_connection.subsystem(connection_ref, channel_id, 'fwup', 500)
+    :success = :ssh_connection.subsystem(connection_ref, channel_id, ~c"fwup", 500)
 
     # Sending data can fail if the remote side closes first. That's what happens
     # when the remote reports a fatal error and that's expected.

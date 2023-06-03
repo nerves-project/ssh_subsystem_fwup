@@ -72,7 +72,7 @@ defmodule SSHSubsystemFwup do
   """
   @spec subsystem_spec(options()) :: :ssh.subsystem_spec()
   def subsystem_spec(options \\ []) do
-    {'fwup', {__MODULE__, options}}
+    {~c"fwup", {__MODULE__, options}}
   end
 
   @impl :ssh_client_channel
