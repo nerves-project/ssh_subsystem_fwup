@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.2
+
+* Improvements
+  * Fix `mix upload` so that its invocation of `ssh` no longer overrides
+    `LD_LIBRARY_PATH`. (@ringlej)
+  * Fix/clean up some typespecs
+
 ## v0.6.1
 
 * Improvements
