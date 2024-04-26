@@ -87,6 +87,10 @@ defmodule Mix.Tasks.Upload do
          "-s",
          ip,
          "fwup"
+       ]},
+      {:env,
+       [
+         {~c"LD_LIBRARY_PATH", false}
        ]}
     ]
 
