@@ -169,10 +169,15 @@ defmodule Mix.Tasks.Upload do
         This is known to happen when ssh interactively prompts you for a
         passphrase. The following are workarounds:
 
-        1. Load your private key identity into the ssh agent by running
+        1. Make sure host key verification works for the hostname 
+           (try `ssh hostname`). This would apply when connecting to 
+           the device for the first time or for the first time after 
+           a fresh firmware was burned.
+
+        2. Load your private key identity into the ssh agent by running
            `ssh-add`
 
-        2. Use the `upload.sh` script. Create one by running
+        3. Use the `upload.sh` script. Create one by running
            `mix firmware.gen.script`.
         """)
 
