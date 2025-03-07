@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2019 Frank Hunleth
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule SSHSubsystemFwup.Support.Fwup do
   @moduledoc """
   This module is intended to help with testing and development

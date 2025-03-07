@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2019 Frank Hunleth
+# SPDX-FileCopyrightText: 2020 Jon Carstens
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule SSHSubsystemFwup do
   @moduledoc """
   SSH subsystem for upgrading Nerves devices
