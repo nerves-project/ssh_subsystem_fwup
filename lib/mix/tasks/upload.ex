@@ -176,9 +176,9 @@ defmodule Mix.Tasks.Upload do
         This is known to happen when ssh interactively prompts you for a
         passphrase. The following are workarounds:
 
-        1. Make sure host key verification works for the hostname 
-           (try `ssh hostname`). This would apply when connecting to 
-           the device for the first time or for the first time after 
+        1. Make sure host key verification works for the hostname
+           (try `ssh hostname`). This would apply when connecting to
+           the device for the first time or for the first time after
            a fresh firmware was burned.
 
         2. Load your private key identity into the ssh agent by running
