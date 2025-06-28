@@ -39,25 +39,23 @@ defmodule SSHSubsystemFwup.MixProject do
     [
       app: :ssh_subsystem_fwup,
       version: @version,
-      elixir: "~> 1.10",
+      elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer(),
       docs: docs(),
       package: package(),
-      description: description(),
-      preferred_cli_env: %{
-        docs: :docs,
-        "hex.publish": :docs,
-        "hex.build": :docs,
-        credo: :test
-      }
+      description: description()
     ]
   end
 
   def application do
     [extra_applications: [:logger, :ssh]]
+  end
+
+  def cli do
+    [preferred_envs: %{docs: :docs, "hex.publish": :docs, "hex.build": :docs, credo: :test}]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
