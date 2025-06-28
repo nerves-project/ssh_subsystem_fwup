@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.3
+
+This release adds [REUSE compliance](https://reuse.software/) to improve
+copyright and licensing accuracy for compliance tools.
+
+* Improvements
+  * Fixed a minor Elixir 1.19 warning
+  * Removed support for Elixir 1.13 and earlier since they're no longer
+    regularly tested.
+
 ## v0.6.2
 
 * Improvements
