@@ -87,6 +87,7 @@ defmodule SSHSubsystemFwup.MixProject do
 
   defp deps do
     [
+      {:interactive_cmd, "~> 0.1.2"},
       {:ex_doc, "~> 0.22", only: :docs, runtime: false},
       {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       {:credo, "~> 1.2", only: :test, runtime: false}
