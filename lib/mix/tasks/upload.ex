@@ -25,6 +25,7 @@ defmodule Mix.Tasks.Upload do
   ## Command line options
 
    * `--firmware` - The path to a fw file
+   * `--port` - An alternative TCP port to use for the upload (defaults to 22)
 
   ## Examples
 
@@ -39,7 +40,8 @@ defmodule Mix.Tasks.Upload do
   """
 
   @switches [
-    firmware: :string
+    firmware: :string,
+    port: :integer
   ]
 
   @doc false
@@ -61,17 +63,19 @@ defmodule Mix.Tasks.Upload do
 
     check_requirements!()
 
+    port = opts[:port] || 22
+
     firmware_path = firmware(opts)
 
     Mix.shell().info("""
     Path: #{firmware_path}
     #{maybe_print_firmware_uuid(firmware_path)}
-    Uploading to #{ip}...
+    Uploading to #{ip}:#{port}...
     """)
 
     # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
     {_, status} =
-      InteractiveCmd.shell("cat #{firmware_path} | ssh -s #{ip} fwup",
+      InteractiveCmd.shell("cat #{firmware_path} | ssh -p #{port} -s #{ip} fwup",
         env: [{"LD_LIBRARY_PATH", false}]
       )
 
