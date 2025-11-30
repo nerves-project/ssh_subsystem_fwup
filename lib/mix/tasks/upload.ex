@@ -54,14 +54,9 @@ defmodule Mix.Tasks.Upload do
 
     ip =
       case args do
-        [address] ->
-          address
-
-        [] ->
-          "nerves.local"
-
-        _other ->
-          Mix.raise(target_ip_address_or_name_msg())
+        [address] -> address
+        [] -> "nerves.local"
+        _other -> Mix.raise(target_ip_address_or_name_msg())
       end
 
     firmware_path = firmware(opts)
