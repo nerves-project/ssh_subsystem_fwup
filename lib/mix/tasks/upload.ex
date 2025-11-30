@@ -25,6 +25,7 @@ defmodule Mix.Tasks.Upload do
   ## Command line options
 
    * `--firmware` - The path to a fw file
+   * `--port` - An alternative TCP port to use for the upload (defaults to 22)
 
   ## Examples
 
@@ -39,7 +40,8 @@ defmodule Mix.Tasks.Upload do
   """
 
   @switches [
-    firmware: :string
+    firmware: :string,
+    port: :integer
   ]
 
   @doc false
@@ -61,17 +63,20 @@ defmodule Mix.Tasks.Upload do
 
     check_requirements!()
 
+    port = opts[:port] || 22
+    validate_port!(port)
+
     firmware_path = firmware(opts)
 
     Mix.shell().info("""
     Path: #{firmware_path}
     #{maybe_print_firmware_uuid(firmware_path)}
-    Uploading to #{ip}...
+    Uploading to #{ip}:#{port}...
     """)
 
     # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
     {_, status} =
-      InteractiveCmd.shell("cat #{firmware_path} | ssh -s #{ip} fwup",
+      InteractiveCmd.shell("cat #{firmware_path} | ssh -p #{port} -s #{ip} fwup",
         env: [{"LD_LIBRARY_PATH", false}]
       )
 
@@ -142,6 +147,12 @@ defmodule Mix.Tasks.Upload do
       Cannot find 'ssh'. Check that it exists in your path
       """)
     end
+  end
+
+  defp validate_port!(port) when is_integer(port) and port > 0 and port <= 65535, do: :ok
+
+  defp validate_port!(port) do
+    Mix.raise("Invalid port: #{inspect(port)}. Port must be an integer between 1 and 65535.")
   end
 
   defp target_ip_address_or_name_msg() do
