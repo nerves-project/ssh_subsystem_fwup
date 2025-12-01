@@ -28,8 +28,7 @@ defmodule Mix.Tasks.Upload do
    * `--port` - An alternative TCP port to use for the upload (defaults to 22)
    * `--task` - The fwup task to run on the device (defaults to "upgrade").
      Use this to run alternative tasks like "complete" or custom tasks defined
-     in your firmware. The device must be configured to support the specified
-     task (see `SSHSubsystemFwup.subsystem_specs/1`).
+     in your firmware.
 
   ## Examples
 
@@ -76,7 +75,8 @@ defmodule Mix.Tasks.Upload do
     validate_port!(port)
 
     task = opts[:task]
-    subsystem = if task, do: "fwup:#{task}", else: "fwup"
+    task_env = if task, do: "FWUP_TASK=#{task} ", else: ""
+    send_env_opt = if task, do: "-o SendEnv=FWUP_TASK ", else: ""
 
     firmware_path = firmware(opts)
 
@@ -89,7 +89,7 @@ defmodule Mix.Tasks.Upload do
     # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
     {_, status} =
       InteractiveCmd.shell(
-        "cat #{shell_quote(firmware_path)} | ssh -p #{port} -s -- #{shell_quote(ip)} #{shell_quote(subsystem)}",
+        "#{task_env}cat #{shell_quote(firmware_path)} | ssh #{send_env_opt}-p #{port} -s -- #{shell_quote(ip)} fwup",
         env: [{"LD_LIBRARY_PATH", false}]
       )
 

@@ -96,10 +96,10 @@ cat $firmware | ssh -s $nerves_device fwup
 ```
 
 To run a specific task (like `complete` instead of the default `upgrade`), use
-the `fwup:<task>` subsystem name:
+SSH's `SendEnv` option to pass the `FWUP_TASK` environment variable:
 
 ```shell
-cat $firmware | ssh -s $nerves_device fwup:complete
+FWUP_TASK=complete cat $firmware | ssh -o SendEnv=FWUP_TASK -s $nerves_device fwup
 ```
 
 ## Running different fwup tasks
@@ -110,30 +110,8 @@ may want to run different tasks like:
 * `complete` - Completely re-image the device (useful for recovering or initial setup)
 * `ops` - Run operations firmware for partition validation, data erasure, or U-Boot updates
 
-### Configuring the server
-
-To support multiple tasks, register additional subsystem specs on the device:
-
-```elixir
-:ssh.daemon(@port, [
-  {:subsystems, [
-    SSHSubsystemFwup.subsystem_spec(devpath: devpath),
-    SSHSubsystemFwup.subsystem_spec(devpath: devpath, name: "fwup:complete", task: "complete"),
-    SSHSubsystemFwup.subsystem_spec(devpath: devpath, name: "fwup:ops", task: "ops")
-  ]}
-])
-```
-
-Or use the convenience function to register multiple tasks at once:
-
-```elixir
-:ssh.daemon(@port, [
-  {:subsystems, SSHSubsystemFwup.subsystem_specs(
-    devpath: devpath,
-    tasks: ["upgrade", "complete", "ops"]
-  )}
-])
-```
+No special server configuration is needed to support different tasks. The
+client specifies the task using SSH's `SendEnv` option.
 
 ### Uploading with a specific task
 
@@ -152,7 +130,7 @@ Using `upload.sh`:
 Using raw ssh:
 
 ```shell
-cat my_firmware.fw | ssh -s nerves.local fwup:complete
+FWUP_TASK=complete cat my_firmware.fw | ssh -o SendEnv=FWUP_TASK -s nerves.local fwup
 ```
 
 ## Configuration
@@ -190,15 +168,15 @@ The following options are available:
 * `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
 * `:fwup_extra_options` - additional options to pass to fwup like for setting
   public keys
-* `:name` - the subsystem name. Defaults to `"fwup"`. Set to `"fwup:<task>"` to
-  create a subsystem that runs a specific task when clients connect using that name.
 * `:precheck_callback` - an MFArgs to call when there's a connection. If
   specified, the callback will be passed the username and the current set of
   options. If allowed, it should return `{:ok, new_options}`. Any other return
   value closes the connection.
 * `:success_callback` - an MFArgs to call when a firmware update completes
   successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
-* `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
+* `:task` - the task to run in the firmware update. Defaults to `"upgrade"`.
+  This can be overridden by clients using SSH's `SendEnv` option to pass the
+  `FWUP_TASK` environment variable.
 
 ## License
 

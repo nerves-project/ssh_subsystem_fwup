@@ -50,22 +50,21 @@ defmodule SSHSubsystemFwup do
   * `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
   * `:fwup_extra_options` - additional options to pass to fwup like for setting
     public keys
-  * `:name` - the subsystem name. Defaults to `"fwup"`. Can be set to `"fwup:<task>"`
-    to create a subsystem that runs a specific task when clients connect to it.
   * `:precheck_callback` - an MFArgs to call when there's a connection. If
     specified, the callback will be passed the username and the current set of
     options. If allowed, it should return `{:ok, new_options}`. Any other
     return value closes the connection.
   * `:success_callback` - an MFArgs to call when a firmware update completes
     successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
-  * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
+  * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`.
+    This can be overridden by clients using SSH's `SendEnv` option to pass the
+    `FWUP_TASK` environment variable.
   """
   @type options :: [
           devpath: Path.t(),
           fwup_path: Path.t(),
           fwup_env: [{String.t(), String.t()}],
           fwup_extra_options: [String.t()],
-          name: String.t(),
           precheck_callback: mfargs() | nil,
           task: String.t(),
           success_callback: mfargs()
@@ -78,76 +77,23 @@ defmodule SSHSubsystemFwup do
   @doc """
   Helper for creating the SSH subsystem spec
 
-  This creates a single subsystem spec. By default, the subsystem is named
-  `"fwup"`. Use the `:name` option to set a custom name. A common pattern is
-  to create multiple subsystem specs for different tasks:
+  Clients can override the task by using SSH's `SendEnv` option to pass the
+  `FWUP_TASK` environment variable. For example:
 
-  ```elixir
-  :ssh.daemon([
-    {:subsystems, [
-      SSHSubsystemFwup.subsystem_spec(),
-      SSHSubsystemFwup.subsystem_spec(name: "fwup:complete", task: "complete"),
-      SSHSubsystemFwup.subsystem_spec(name: "fwup:ops", task: "ops")
-    ]}
-  ])
+  ```shell
+  FWUP_TASK=complete cat firmware.fw | ssh -o SendEnv=FWUP_TASK -s device fwup
   ```
 
-  Then clients can connect using `ssh -s device fwup:complete` to run a
-  specific task.
+  Or using the provided upload tools:
+
+  ```shell
+  mix upload nerves.local --task complete
+  ./upload.sh --task complete nerves.local
+  ```
   """
   @spec subsystem_spec(options()) :: :ssh.subsystem_spec()
   def subsystem_spec(options \\ []) do
-    name = Keyword.get(options, :name, "fwup")
-    {to_charlist(name), {__MODULE__, options}}
-  end
-
-  @doc """
-  Helper for creating multiple SSH subsystem specs for different tasks
-
-  This is a convenience function that creates subsystem specs for multiple
-  tasks. The first task in the list will be registered as both `fwup` (the
-  default subsystem name) and `fwup:<task_name>`. Subsequent tasks will only
-  be registered as `fwup:<task_name>`.
-
-  Example:
-
-  ```elixir
-  :ssh.daemon([
-    {:subsystems, SSHSubsystemFwup.subsystem_specs(
-      devpath: "/dev/mmcblk0",
-      tasks: ["upgrade", "complete", "ops"]
-    )}
-  ])
-  ```
-
-  This creates subsystem specs for:
-  - `fwup` and `fwup:upgrade` - both run the "upgrade" task
-  - `fwup:complete` - runs the "complete" task
-  - `fwup:ops` - runs the "ops" task
-
-  Options are the same as `subsystem_spec/1`, except `:tasks` replaces `:task`
-  and `:name` is automatically set based on the task name.
-  """
-  @spec subsystem_specs(Keyword.t()) :: [:ssh.subsystem_spec()]
-  def subsystem_specs(options \\ []) do
-    {tasks, base_options} = Keyword.pop(options, :tasks, ["upgrade"])
-    base_options = Keyword.delete(base_options, :name)
-
-    tasks
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {task, index} ->
-      task_options = Keyword.put(base_options, :task, task)
-
-      if index == 0 do
-        # First task gets both the default "fwup" name and "fwup:<task>"
-        [
-          subsystem_spec(Keyword.put(task_options, :name, "fwup")),
-          subsystem_spec(Keyword.put(task_options, :name, "fwup:#{task}"))
-        ]
-      else
-        [subsystem_spec(Keyword.put(task_options, :name, "fwup:#{task}"))]
-      end
-    end)
+    {~c"fwup", {__MODULE__, options}}
   end
 
   @impl :ssh_client_channel
@@ -158,7 +104,7 @@ defmodule SSHSubsystemFwup do
       |> Keyword.merge(Application.get_all_env(:ssh_subsystem_fwup))
       |> Keyword.merge(options)
 
-    {:ok, %{state: :running_fwup, id: nil, cm: nil, fwup: nil, options: combined_options}}
+    {:ok, %{state: :running_fwup, id: nil, cm: nil, fwup: nil, options: combined_options, env: %{}}}
   end
 
   defp default_options() do
@@ -175,11 +121,18 @@ defmodule SSHSubsystemFwup do
 
   @impl :ssh_client_channel
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
-    with {:ok, options} <- precheck(state.options[:precheck_callback], state.options),
+    # Check if FWUP_TASK was set via SendEnv and override the task option
+    options =
+      case Map.get(state.env, "FWUP_TASK") do
+        nil -> state.options
+        task -> Keyword.put(state.options, :task, task)
+      end
+
+    with {:ok, options} <- precheck(options[:precheck_callback], options),
          :ok <- check_devpath(options[:devpath]) do
-      Logger.debug("ssh_subsystem_fwup: starting fwup")
+      Logger.debug("ssh_subsystem_fwup: starting fwup with task #{options[:task]}")
       fwup = FwupPort.open_port(options)
-      {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
+      {:ok, %{state | id: channel_id, cm: cm, fwup: fwup, options: options}}
     else
       {:error, reason} ->
         _ = :ssh_connection.send(cm, channel_id, "Error: #{reason}")
@@ -228,6 +181,20 @@ defmodule SSHSubsystemFwup do
   def handle_ssh_msg({:ssh_cm, _cm, {:data, _channel_id, 1, _data}}, state) do
     # Ignore stderr
     {:ok, state}
+  end
+
+  def handle_ssh_msg({:ssh_cm, cm, {:env, channel_id, want_reply, var, value}}, state) do
+    # Store environment variable (convert charlists to strings if needed)
+    var_str = if is_list(var), do: to_string(var), else: var
+    value_str = if is_list(value), do: to_string(value), else: value
+    new_env = Map.put(state.env, var_str, value_str)
+
+    # Reply if requested
+    if want_reply do
+      :ssh_connection.reply_request(cm, want_reply, :success, channel_id)
+    end
+
+    {:ok, %{state | env: new_env}}
   end
 
   def handle_ssh_msg({:ssh_cm, _cm, {:eof, _channel_id}}, state) do

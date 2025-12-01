@@ -168,18 +168,19 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   echo "UUID: $FIRMWARE_UUID"
   echo "Platform: $FIRMWARE_PLATFORM"
 
-  # Determine the subsystem name based on task
+  # Set up task environment variable and SSH options if task is specified
   if [ -n "$TASK" ]; then
-    SUBSYSTEM="fwup:$TASK"
+    export FWUP_TASK="$TASK"
+    SEND_ENV_OPT="-o SendEnv=FWUP_TASK"
     echo "Task: $TASK"
   else
-    SUBSYSTEM="fwup"
+    SEND_ENV_OPT=""
   fi
 
   echo
   echo "Uploading to $DESTINATION..."
 
-  cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION "$SUBSYSTEM"
+  cat "$FILENAME" | ssh -s $SEND_ENV_OPT $SSH_OPTIONS $DESTINATION fwup
   """
 
   @spec run(keyword()) :: :ok

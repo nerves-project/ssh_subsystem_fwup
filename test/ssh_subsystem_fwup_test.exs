@@ -42,31 +42,22 @@ defmodule SSHSubsystemFwupTest do
     end)
   end
 
-  def start_sshd_with_subsystems(subsystem_specs, devpath) do
-    {:ok, ref} =
-      :ssh.daemon(@port, [
-        {:max_sessions, 1},
-        {:user_passwords, [{~c"user", ~c"password"}]},
-        {:system_dir, ~c"test/fixtures"},
-        {:subsystems, subsystem_specs}
-      ])
-
-    on_exit(fn ->
-      :ssh.stop_daemon(ref)
-      devpath && File.rm!(devpath)
-    end)
-  end
-
   def do_ssh(payload) do
-    do_ssh(payload, ~c"fwup")
+    do_ssh(payload, [])
   end
 
-  def do_ssh(payload, subsystem_name) do
+  def do_ssh(payload, env) when is_list(env) do
     connect_opts = [silently_accept_hosts: true, user: ~c"user", password: ~c"password"]
 
     {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
     {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
-    :success = :ssh_connection.subsystem(connection_ref, channel_id, subsystem_name, 500)
+
+    # Send environment variables before starting the subsystem
+    for {var, value} <- env do
+      :ssh_connection.setenv(connection_ref, channel_id, to_charlist(var), to_charlist(value), 500)
+    end
+
+    :success = :ssh_connection.subsystem(connection_ref, channel_id, ~c"fwup", 500)
 
     # Sending data can fail if the remote side closes first. That's what happens
     # when the remote reports a fatal error and that's expected.
@@ -310,26 +301,18 @@ defmodule SSHSubsystemFwupTest do
     assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
   end
 
-  test "using named subsystem with fwup:task syntax", context do
-    devpath = Path.join(@tmpdir, "#{context.test}.img")
-    options = [
-      success_callback: {Kernel, :send, [self(), :success]},
-      devpath: devpath
-    ]
+  test "FWUP_TASK environment variable overrides default task", context do
+    options = default_options(context.test)
+    File.touch!(options[:devpath])
 
-    File.touch!(devpath)
+    start_sshd(options)
 
-    # Register subsystems using the name: option
-    subsystems = [
-      SSHSubsystemFwup.subsystem_spec(options ++ [name: "fwup"]),
-      SSHSubsystemFwup.subsystem_spec(options ++ [name: "fwup:myupgrade", task: "myupgrade"])
-    ]
-
-    start_sshd_with_subsystems(subsystems, devpath)
-    fw_contents = Fwup.create_firmware(task: "myupgrade")
+    # Create firmware with a custom task
+    fw_contents = Fwup.create_firmware(task: "custom_task")
 
     capture_log(fn ->
-      {output, exit_status} = do_ssh(fw_contents, ~c"fwup:myupgrade")
+      # Send FWUP_TASK environment variable to override the task
+      {output, exit_status} = do_ssh(fw_contents, [{"FWUP_TASK", "custom_task"}])
 
       assert exit_status == 0
       assert output =~ "Success!"
@@ -339,70 +322,31 @@ defmodule SSHSubsystemFwupTest do
     assert_receive :success
 
     # Check that the update was applied
-    assert match?(<<"Hello, world!", _::binary>>, File.read!(devpath))
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
   end
 
-  test "subsystem_specs generates multiple subsystem specs", context do
-    devpath = Path.join(@tmpdir, "#{context.test}.img")
+  test "FWUP_TASK environment variable overrides configured task", context do
+    # Configure with "upgrade" task but override via env to "override_task"
+    options = default_options(context.test) ++ [task: "upgrade"]
+    File.touch!(options[:devpath])
 
-    File.touch!(devpath)
+    start_sshd(options)
 
-    subsystems = SSHSubsystemFwup.subsystem_specs(
-      devpath: devpath,
-      success_callback: {Kernel, :send, [self(), :success]},
-      tasks: ["upgrade", "complete"]
-    )
-
-    # Check that we get the expected number of subsystems
-    # First task generates 2 (fwup and fwup:upgrade), second task generates 1 (fwup:complete)
-    assert length(subsystems) == 3
-
-    # Check subsystem names
-    names = Enum.map(subsystems, fn {name, _} -> to_string(name) end)
-    assert "fwup" in names
-    assert "fwup:upgrade" in names
-    assert "fwup:complete" in names
-
-    start_sshd_with_subsystems(subsystems, devpath)
-
-    # Test the default fwup subsystem (runs upgrade task)
-    fw_contents = Fwup.create_firmware(task: "upgrade")
+    # Create firmware with the override task
+    fw_contents = Fwup.create_firmware(task: "override_task")
 
     capture_log(fn ->
-      {output, exit_status} = do_ssh(fw_contents)
+      # Send FWUP_TASK environment variable to override the configured task
+      {output, exit_status} = do_ssh(fw_contents, [{"FWUP_TASK", "override_task"}])
 
       assert exit_status == 0
       assert output =~ "Success!"
     end)
 
+    # Check that the success function was called
     assert_receive :success
-    assert match?(<<"Hello, world!", _::binary>>, File.read!(devpath))
-  end
 
-  test "subsystem_specs allows using named task via fwup:taskname", context do
-    devpath = Path.join(@tmpdir, "#{context.test}.img")
-
-    File.touch!(devpath)
-
-    subsystems = SSHSubsystemFwup.subsystem_specs(
-      devpath: devpath,
-      success_callback: {Kernel, :send, [self(), :success]},
-      tasks: ["upgrade", "mytask"]
-    )
-
-    start_sshd_with_subsystems(subsystems, devpath)
-
-    # Test using fwup:mytask subsystem
-    fw_contents = Fwup.create_firmware(task: "mytask")
-
-    capture_log(fn ->
-      {output, exit_status} = do_ssh(fw_contents, ~c"fwup:mytask")
-
-      assert exit_status == 0
-      assert output =~ "Success!"
-    end)
-
-    assert_receive :success
-    assert match?(<<"Hello, world!", _::binary>>, File.read!(devpath))
+    # Check that the update was applied
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
   end
 end
