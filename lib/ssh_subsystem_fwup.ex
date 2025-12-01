@@ -125,7 +125,8 @@ defmodule SSHSubsystemFwup do
     options =
       case Map.get(state.env, "FWUP_TASK") do
         nil -> state.options
-        task -> Keyword.put(state.options, :task, task)
+        task when is_binary(task) -> Keyword.put(state.options, :task, validate_task(task))
+        _ -> state.options
       end
 
     with {:ok, options} <- precheck(options[:precheck_callback], options),
@@ -184,10 +185,18 @@ defmodule SSHSubsystemFwup do
   end
 
   def handle_ssh_msg({:ssh_cm, cm, {:env, channel_id, want_reply, var, value}}, state) do
-    # Store environment variable (convert charlists to strings if needed)
+    # Convert charlists to strings if needed
     var_str = if is_list(var), do: to_string(var), else: var
     value_str = if is_list(value), do: to_string(value), else: value
-    new_env = Map.put(state.env, var_str, value_str)
+
+    # Only accept FWUP_TASK environment variable for security
+    new_env =
+      if var_str == "FWUP_TASK" do
+        Map.put(state.env, var_str, value_str)
+      else
+        Logger.debug("ssh_subsystem_fwup: ignoring environment variable #{var_str}")
+        state.env
+      end
 
     # Reply if requested
     if want_reply do
@@ -247,6 +256,17 @@ defmodule SSHSubsystemFwup do
   @impl :ssh_client_channel
   def code_change(_old, state, _extra) do
     {:ok, state}
+  end
+
+  # Validate task name to only contain safe characters (alphanumeric, underscore, hyphen)
+  # to prevent potential command injection
+  defp validate_task(task) when is_binary(task) do
+    if Regex.match?(~r/^[a-zA-Z0-9_-]+$/, task) do
+      task
+    else
+      Logger.warning("ssh_subsystem_fwup: invalid task name #{inspect(task)}, using default")
+      "upgrade"
+    end
   end
 
   defp check_devpath(devpath) do
