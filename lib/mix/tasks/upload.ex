@@ -184,7 +184,7 @@ defmodule Mix.Tasks.Upload do
   # Validate the destination hostname/IP to prevent command injection
   # Allow alphanumeric characters, hyphens, periods, and colons (for IPv6)
   defp validate_destination!(destination) do
-    if Regex.match?(~r/^[a-zA-Z0-9.\-:]+$/, destination) do
+    if Regex.match?(~r/^[a-zA-Z0-9.:_-]+$/, destination) do
       :ok
     else
       Mix.raise("""
