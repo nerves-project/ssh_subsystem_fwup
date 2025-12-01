@@ -78,6 +78,7 @@ defmodule SSHSubsystemFwup.MixProject do
       ],
       licenses: ["Apache-2.0"],
       links: %{
+        "Changelog" => @source_url <> "/blob/main/CHANGELOG.md",
         "GitHub" => @source_url,
         "REUSE Compliance" =>
           "https://api.reuse.software/info/github.com/nerves-project/ssh_subsystem_fwup"
