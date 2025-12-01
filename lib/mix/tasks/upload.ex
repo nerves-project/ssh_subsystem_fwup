@@ -64,8 +64,10 @@ defmodule Mix.Tasks.Upload do
     check_requirements!()
 
     port = opts[:port] || 22
+    validate_port!(port)
 
     firmware_path = firmware(opts)
+    validate_destination!(ip)
 
     Mix.shell().info("""
     Path: #{firmware_path}
@@ -74,8 +76,11 @@ defmodule Mix.Tasks.Upload do
     """)
 
     # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
+    # Arguments are shell-quoted to prevent command injection
     {_, status} =
-      InteractiveCmd.shell("cat #{firmware_path} | ssh -p #{port} -s #{ip} fwup",
+      InteractiveCmd.cmd(
+        "sh",
+        ["-c", "cat #{shell_quote(firmware_path)} | ssh -p #{port} -s #{shell_quote(ip)} fwup"],
         env: [{"LD_LIBRARY_PATH", false}]
       )
 
@@ -169,4 +174,28 @@ defmodule Mix.Tasks.Upload do
     # on as normal by returning an empty line
     _, _ -> ""
   end
+
+  defp validate_port!(port) when is_integer(port) and port > 0 and port <= 65535, do: :ok
+
+  defp validate_port!(port) do
+    Mix.raise("Invalid port: #{inspect(port)}. Port must be an integer between 1 and 65535.")
+  end
+
+  # Validate the destination hostname/IP to prevent command injection
+  # Allow alphanumeric characters, hyphens, periods, and colons (for IPv6)
+  defp validate_destination!(destination) do
+    if Regex.match?(~r/^[a-zA-Z0-9.\-:]+$/, destination) do
+      :ok
+    else
+      Mix.raise("""
+      Invalid destination: #{destination}
+
+      The destination must be a valid hostname or IP address.
+      """)
+    end
+  end
+
+  # Shell-quote a string for safe use in shell commands
+  defp shell_quote(str), do: "'#{escape_quote(str)}'"
+  defp escape_quote(str), do: String.replace(str, "'", "'\\''")
 end
