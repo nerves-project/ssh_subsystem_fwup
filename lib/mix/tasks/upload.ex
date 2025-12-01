@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Upload do
     # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
     {_, status} =
       InteractiveCmd.shell(
-        "cat #{shell_quote(firmware_path)} | ssh -p #{port} -s #{shell_quote(ip)} fwup",
+        "cat #{shell_quote(firmware_path)} | ssh -p #{port} -s -- #{shell_quote(ip)} fwup",
         env: [{"LD_LIBRARY_PATH", false}]
       )
 
