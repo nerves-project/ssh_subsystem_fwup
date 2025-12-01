@@ -42,12 +42,31 @@ defmodule SSHSubsystemFwupTest do
     end)
   end
 
+  def start_sshd_with_subsystems(subsystem_specs, devpath) do
+    {:ok, ref} =
+      :ssh.daemon(@port, [
+        {:max_sessions, 1},
+        {:user_passwords, [{~c"user", ~c"password"}]},
+        {:system_dir, ~c"test/fixtures"},
+        {:subsystems, subsystem_specs}
+      ])
+
+    on_exit(fn ->
+      :ssh.stop_daemon(ref)
+      devpath && File.rm!(devpath)
+    end)
+  end
+
   def do_ssh(payload) do
+    do_ssh(payload, ~c"fwup")
+  end
+
+  def do_ssh(payload, subsystem_name) do
     connect_opts = [silently_accept_hosts: true, user: ~c"user", password: ~c"password"]
 
     {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
     {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
-    :success = :ssh_connection.subsystem(connection_ref, channel_id, ~c"fwup", 500)
+    :success = :ssh_connection.subsystem(connection_ref, channel_id, subsystem_name, 500)
 
     # Sending data can fail if the remote side closes first. That's what happens
     # when the remote reports a fatal error and that's expected.
@@ -289,5 +308,101 @@ defmodule SSHSubsystemFwupTest do
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
+  end
+
+  test "using named subsystem with fwup:task syntax", context do
+    devpath = Path.join(@tmpdir, "#{context.test}.img")
+    options = [
+      success_callback: {Kernel, :send, [self(), :success]},
+      devpath: devpath
+    ]
+
+    File.touch!(devpath)
+
+    # Register subsystems using the name: option
+    subsystems = [
+      SSHSubsystemFwup.subsystem_spec(options ++ [name: "fwup"]),
+      SSHSubsystemFwup.subsystem_spec(options ++ [name: "fwup:myupgrade", task: "myupgrade"])
+    ]
+
+    start_sshd_with_subsystems(subsystems, devpath)
+    fw_contents = Fwup.create_firmware(task: "myupgrade")
+
+    capture_log(fn ->
+      {output, exit_status} = do_ssh(fw_contents, ~c"fwup:myupgrade")
+
+      assert exit_status == 0
+      assert output =~ "Success!"
+    end)
+
+    # Check that the success function was called
+    assert_receive :success
+
+    # Check that the update was applied
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(devpath))
+  end
+
+  test "subsystem_specs generates multiple subsystem specs", context do
+    devpath = Path.join(@tmpdir, "#{context.test}.img")
+
+    File.touch!(devpath)
+
+    subsystems = SSHSubsystemFwup.subsystem_specs(
+      devpath: devpath,
+      success_callback: {Kernel, :send, [self(), :success]},
+      tasks: ["upgrade", "complete"]
+    )
+
+    # Check that we get the expected number of subsystems
+    # First task generates 2 (fwup and fwup:upgrade), second task generates 1 (fwup:complete)
+    assert length(subsystems) == 3
+
+    # Check subsystem names
+    names = Enum.map(subsystems, fn {name, _} -> to_string(name) end)
+    assert "fwup" in names
+    assert "fwup:upgrade" in names
+    assert "fwup:complete" in names
+
+    start_sshd_with_subsystems(subsystems, devpath)
+
+    # Test the default fwup subsystem (runs upgrade task)
+    fw_contents = Fwup.create_firmware(task: "upgrade")
+
+    capture_log(fn ->
+      {output, exit_status} = do_ssh(fw_contents)
+
+      assert exit_status == 0
+      assert output =~ "Success!"
+    end)
+
+    assert_receive :success
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(devpath))
+  end
+
+  test "subsystem_specs allows using named task via fwup:taskname", context do
+    devpath = Path.join(@tmpdir, "#{context.test}.img")
+
+    File.touch!(devpath)
+
+    subsystems = SSHSubsystemFwup.subsystem_specs(
+      devpath: devpath,
+      success_callback: {Kernel, :send, [self(), :success]},
+      tasks: ["upgrade", "mytask"]
+    )
+
+    start_sshd_with_subsystems(subsystems, devpath)
+
+    # Test using fwup:mytask subsystem
+    fw_contents = Fwup.create_firmware(task: "mytask")
+
+    capture_log(fn ->
+      {output, exit_status} = do_ssh(fw_contents, ~c"fwup:mytask")
+
+      assert exit_status == 0
+      assert output =~ "Success!"
+    end)
+
+    assert_receive :success
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(devpath))
   end
 end

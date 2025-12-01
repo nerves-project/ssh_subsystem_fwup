@@ -25,7 +25,11 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   # Upload new firmware to a device running ssh_subsystem_fwup
   #
   # Usage:
-  #   upload.sh [destination IP] [Path to .fw file]
+  #   upload.sh [options] [destination IP] [Path to .fw file]
+  #
+  # Options:
+  #   --task <task>    Specify the fwup task to run (e.g., "upgrade", "complete", "ops")
+  #                    Default: No task specified (uses server default, typically "upgrade")
   #
   # If unspecified, the destination is nerves.local and the .fw file is naively
   # guessed
@@ -52,12 +56,65 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
 
   set -e
 
-  DESTINATION=$1
-  FILENAME="$2"
+  TASK=""
+  DESTINATION=""
+  FILENAME=""
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --task)
+        if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+          TASK="$2"
+          shift 2
+        else
+          echo "Error: --task requires a value"
+          exit 1
+        fi
+        ;;
+      --help|-h)
+        echo "Usage: upload.sh [options] [destination IP] [Path to .fw file]"
+        echo
+        echo "Options:"
+        echo "  --task <task>    Specify the fwup task to run (e.g., upgrade, complete, ops)"
+        echo "                   Default: No task specified (uses server default)"
+        echo "  --help           Show this help message"
+        echo
+        echo "Default destination IP is 'nerves.local'"
+        echo "Default firmware bundle is the first .fw file in '_build/\\${MIX_TARGET}_\\${MIX_ENV}/nerves/images'"
+        echo
+        echo "Examples:"
+        echo "  ./upload.sh                                    # Upload to nerves.local"
+        echo "  ./upload.sh 192.168.1.100                      # Upload to specific IP"
+        echo "  ./upload.sh --task complete nerves.local       # Run complete task"
+        echo "  ./upload.sh --task ops 192.168.1.100 my.fw     # Run ops task with specific firmware"
+        exit 0
+        ;;
+      -*)
+        echo "Error: Unknown option $1"
+        exit 1
+        ;;
+      *)
+        # Positional arguments
+        if [ -z "$DESTINATION" ]; then
+          DESTINATION="$1"
+        elif [ -z "$FILENAME" ]; then
+          FILENAME="$1"
+        else
+          echo "Error: Too many arguments"
+          exit 1
+        fi
+        shift
+        ;;
+    esac
+  done
 
   help() {
     echo
-    echo "upload.sh [destination IP] [Path to .fw file]"
+    echo "upload.sh [options] [destination IP] [Path to .fw file]"
+    echo
+    echo "Options:"
+    echo "  --task <task>    Specify the fwup task to run"
     echo
     echo "Default destination IP is 'nerves.local'"
     echo "Default firmware bundle is the first .fw file in '_build/\\${MIX_TARGET}_\\${MIX_ENV}/nerves/images'"
@@ -108,10 +165,19 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   echo "Product: $FIRMWARE_PRODUCT $FIRMWARE_VERSION"
   echo "UUID: $FIRMWARE_UUID"
   echo "Platform: $FIRMWARE_PLATFORM"
+
+  # Determine the subsystem name based on task
+  if [ -n "$TASK" ]; then
+    SUBSYSTEM="fwup:$TASK"
+    echo "Task: $TASK"
+  else
+    SUBSYSTEM="fwup"
+  fi
+
   echo
   echo "Uploading to $DESTINATION..."
 
-  cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION fwup
+  cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION "$SUBSYSTEM"
   """
 
   @spec run(keyword()) :: :ok

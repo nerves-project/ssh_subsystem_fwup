@@ -95,6 +95,66 @@ equivalent:
 cat $firmware | ssh -s $nerves_device fwup
 ```
 
+To run a specific task (like `complete` instead of the default `upgrade`), use
+the `fwup:<task>` subsystem name:
+
+```shell
+cat $firmware | ssh -s $nerves_device fwup:complete
+```
+
+## Running different fwup tasks
+
+By default, uploads run the `upgrade` fwup task. For advanced use cases, you
+may want to run different tasks like:
+
+* `complete` - Completely re-image the device (useful for recovering or initial setup)
+* `ops` - Run operations firmware for partition validation, data erasure, or U-Boot updates
+
+### Configuring the server
+
+To support multiple tasks, register additional subsystem specs on the device:
+
+```elixir
+:ssh.daemon(@port, [
+  {:subsystems, [
+    SSHSubsystemFwup.subsystem_spec(devpath: devpath),
+    SSHSubsystemFwup.subsystem_spec(devpath: devpath, name: "fwup:complete", task: "complete"),
+    SSHSubsystemFwup.subsystem_spec(devpath: devpath, name: "fwup:ops", task: "ops")
+  ]}
+])
+```
+
+Or use the convenience function to register multiple tasks at once:
+
+```elixir
+:ssh.daemon(@port, [
+  {:subsystems, SSHSubsystemFwup.subsystem_specs(
+    devpath: devpath,
+    tasks: ["upgrade", "complete", "ops"]
+  )}
+])
+```
+
+### Uploading with a specific task
+
+Using `mix upload`:
+
+```shell
+mix upload nerves.local --task complete
+```
+
+Using `upload.sh`:
+
+```shell
+./upload.sh --task complete nerves.local
+```
+
+Using raw ssh:
+
+```shell
+cat my_firmware.fw | ssh -s nerves.local fwup:complete
+```
+
 ## Configuration
 
 The default options should satisfy most use cases, but it's possible to alter
@@ -130,6 +190,8 @@ The following options are available:
 * `:fwup_env` - a list of name,value tuples to be passed to the OS environment for fwup
 * `:fwup_extra_options` - additional options to pass to fwup like for setting
   public keys
+* `:name` - the subsystem name. Defaults to `"fwup"`. Set to `"fwup:<task>"` to
+  create a subsystem that runs a specific task when clients connect using that name.
 * `:precheck_callback` - an MFArgs to call when there's a connection. If
   specified, the callback will be passed the username and the current set of
   options. If allowed, it should return `{:ok, new_options}`. Any other return
