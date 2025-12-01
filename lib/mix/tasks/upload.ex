@@ -80,7 +80,10 @@ defmodule Mix.Tasks.Upload do
     {_, status} =
       InteractiveCmd.cmd(
         "sh",
-        ["-c", "cat #{shell_quote(firmware_path)} | ssh -p #{port} -s #{shell_quote(ip)} fwup"],
+        [
+          "-c",
+          "cat #{shell_quote(firmware_path)} | ssh -p #{shell_quote(to_string(port))} -s #{shell_quote(ip)} fwup"
+        ],
         env: [{"LD_LIBRARY_PATH", false}]
       )
 
@@ -184,7 +187,7 @@ defmodule Mix.Tasks.Upload do
   # Validate the destination hostname/IP to prevent command injection
   # Allow alphanumeric characters, hyphens, periods, and colons (for IPv6)
   defp validate_destination!(destination) do
-    if Regex.match?(~r/^[a-zA-Z0-9.:_-]+$/, destination) do
+    if Regex.match?(~r/^[a-zA-Z0-9.:-]+$/, destination) do
       :ok
     else
       Mix.raise("""
