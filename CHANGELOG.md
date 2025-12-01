@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.4
+
+* Improvements
+  * Use `interactive_cmd` in `mix upload` so that the call to `ssh` can ask for
+    passwords and so that CTRL+C works.
+  * Add `--port` option to `mix upload` to support non-standard `ssh` ports
+
 ## v0.6.3
 
 This release adds [REUSE compliance](https://reuse.software/) to improve
