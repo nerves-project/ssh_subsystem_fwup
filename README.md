@@ -1,3 +1,8 @@
+<!--
+  SPDX-FileCopyrightText: 2017 Frank Hunleth
+  SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # SSHSubsystemFwup
 
 [![Hex version](https://img.shields.io/hexpm/v/ssh_subsystem_fwup.svg "Hex version")](https://hex.pm/packages/ssh_subsystem_fwup)
