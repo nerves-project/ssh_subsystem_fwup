@@ -39,6 +39,10 @@ defmodule SSHSubsystemFwup do
 
   @behaviour :ssh_client_channel
 
+  alias SSHSubsystemFwup.FwupPort
+
+  require Logger
+
   @typedoc false
   @type mfargs() :: {module(), function(), [any()]}
 
@@ -67,10 +71,6 @@ defmodule SSHSubsystemFwup do
           task: String.t(),
           success_callback: mfargs()
         ]
-
-  require Logger
-
-  alias SSHSubsystemFwup.FwupPort
 
   @doc """
   Helper for creating the SSH subsystem spec

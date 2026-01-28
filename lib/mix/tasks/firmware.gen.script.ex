@@ -3,10 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 defmodule Mix.Tasks.Firmware.Gen.Script do
-  use Mix.Task
-
-  @script_name "upload.sh"
-
   @shortdoc "Generates a shell script for pushing firmware updates"
 
   @moduledoc """
@@ -15,8 +11,12 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   This script may be used on its own or used as a base for more complicated
   device software upgrade deployments.
 
-  It saves the script to #{@script_name}.
+  It saves the script to upload.sh.
   """
+
+  use Mix.Task
+
+  @script_name "upload.sh"
 
   @script """
   #!/bin/sh

@@ -6,8 +6,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 defmodule Mix.Tasks.Upload do
-  use Mix.Task
-
   @shortdoc "Uploads firmware to a Nerves device over SSH"
 
   @moduledoc """
@@ -38,6 +36,8 @@ defmodule Mix.Tasks.Upload do
       mix upload 192.168.1.120 --firmware _build/rpi0_prod/nerves/images/app.fw
 
   """
+
+  use Mix.Task
 
   @switches [
     firmware: :string,

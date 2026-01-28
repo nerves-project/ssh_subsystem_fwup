@@ -25,6 +25,7 @@ defmodule SSHSubsystemFwupTest do
     :ok
   end
 
+  @spec start_sshd(keyword()) :: :ok
   def start_sshd(options) do
     {:ok, ref} =
       :ssh.daemon(@port, [
@@ -42,6 +43,7 @@ defmodule SSHSubsystemFwupTest do
     end)
   end
 
+  @spec do_ssh(binary()) :: {binary(), integer()}
   def do_ssh(payload) do
     connect_opts = [silently_accept_hosts: true, user: ~c"user", password: ~c"password"]
 
@@ -220,10 +222,12 @@ defmodule SSHSubsystemFwupTest do
     assert output =~ "Error: Invalid device path: \"\""
   end
 
+  @spec precheck_custom_task(keyword()) :: {:ok, keyword()}
   def precheck_custom_task(options) do
     {:ok, options}
   end
 
+  @spec precheck_fail() :: :error
   def precheck_fail() do
     :error
   end

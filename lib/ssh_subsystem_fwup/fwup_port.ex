@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 defmodule SSHSubsystemFwup.FwupPort do
-  require Logger
-
   @moduledoc false
+
+  require Logger
 
   # Caller must     Process.flag(:trap_exit, true)
 
