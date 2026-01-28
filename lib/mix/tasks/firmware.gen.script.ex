@@ -25,7 +25,11 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   # Upload new firmware to a device running ssh_subsystem_fwup
   #
   # Usage:
-  #   upload.sh [destination IP] [Path to .fw file]
+  #   upload.sh [options] [destination IP] [Path to .fw file]
+  #
+  # Options:
+  #   --task <task>    Specify the fwup task to run (e.g., "upgrade", "complete", "ops")
+  #                    Default: No task specified (uses server default, typically "upgrade")
   #
   # If unspecified, the destination is nerves.local and the .fw file is naively
   # guessed
@@ -52,20 +56,75 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
 
   set -e
 
-  DESTINATION=$1
-  FILENAME="$2"
+  TASK=""
+  DESTINATION=""
+  FILENAME=""
 
-  help() {
+  show_help() {
     echo
-    echo "upload.sh [destination IP] [Path to .fw file]"
+    echo "Usage: upload.sh [options] [destination IP] [Path to .fw file]"
+    echo
+    echo "Options:"
+    echo "  --task <task>    Specify the fwup task to run (e.g., upgrade, complete, ops)"
+    echo "                   Default: No task specified (uses server default)"
+    echo "  --help           Show this help message"
     echo
     echo "Default destination IP is 'nerves.local'"
     echo "Default firmware bundle is the first .fw file in '_build/\\${MIX_TARGET}_\\${MIX_ENV}/nerves/images'"
     echo
-    echo "MIX_TARGET=$MIX_TARGET"
-    echo "MIX_ENV=$MIX_ENV"
-    exit 1
+    echo "Examples:"
+    echo "  ./upload.sh                                    # Upload to nerves.local"
+    echo "  ./upload.sh 192.168.1.100                      # Upload to specific IP"
+    echo "  ./upload.sh --task complete nerves.local       # Run complete task"
+    echo "  ./upload.sh --task ops 192.168.1.100 my.fw     # Run ops task with specific firmware"
+    echo
+    echo "Environment:"
+    echo "  MIX_TARGET=$MIX_TARGET"
+    echo "  MIX_ENV=$MIX_ENV"
   }
+
+  # Parse arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --task)
+        # Check that $2 exists and doesn't start with a dash
+        case "$2" in
+          ""|-)
+            echo "Error: --task requires a value"
+            exit 1
+            ;;
+          -*)
+            echo "Error: --task requires a value"
+            exit 1
+            ;;
+          *)
+            TASK="$2"
+            shift 2
+            ;;
+        esac
+        ;;
+      --help|-h)
+        show_help
+        exit 0
+        ;;
+      -*)
+        echo "Error: Unknown option $1"
+        exit 1
+        ;;
+      *)
+        # Positional arguments
+        if [ -z "$DESTINATION" ]; then
+          DESTINATION="$1"
+        elif [ -z "$FILENAME" ]; then
+          FILENAME="$1"
+        else
+          echo "Error: Too many arguments"
+          exit 1
+        fi
+        shift
+        ;;
+    esac
+  done
 
   [ -n "$DESTINATION" ] || DESTINATION=nerves.local
   if [ -z "$FILENAME" ]; then
@@ -93,10 +152,10 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
     fi
 
     FILENAME=$(ls "$FIRMWARE_PATH/"*.fw 2> /dev/null | head -n 1)
-    [ -n "$FILENAME" ] || (echo "Error: error determining firmware bundle."; help)
+    [ -n "$FILENAME" ] || (echo "Error: error determining firmware bundle."; show_help; exit 1)
   fi
 
-  [ -f "$FILENAME" ] || (echo "Error: can't find '$FILENAME'"; help)
+  [ -f "$FILENAME" ] || (echo "Error: can't find '$FILENAME'"; show_help; exit 1)
 
   FIRMWARE_METADATA=$(fwup -m -i "$FILENAME" || echo "meta-product=Error reading metadata!")
   FIRMWARE_PRODUCT=$(echo "$FIRMWARE_METADATA" | grep -E "^meta-product=" -m 1 2>/dev/null | cut -d '=' -f 2- | tr -d '"')
@@ -108,10 +167,20 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   echo "Product: $FIRMWARE_PRODUCT $FIRMWARE_VERSION"
   echo "UUID: $FIRMWARE_UUID"
   echo "Platform: $FIRMWARE_PLATFORM"
+
+  # Set up task environment variable and SSH options if task is specified
+  if [ -n "$TASK" ]; then
+    export FWUP_TASK="$TASK"
+    SEND_ENV_OPT="-o SendEnv=FWUP_TASK"
+    echo "Task: $TASK"
+  else
+    SEND_ENV_OPT=""
+  fi
+
   echo
   echo "Uploading to $DESTINATION..."
 
-  cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION fwup
+  cat "$FILENAME" | ssh -s $SEND_ENV_OPT $SSH_OPTIONS $DESTINATION fwup
   """
 
   @spec run(keyword()) :: :ok

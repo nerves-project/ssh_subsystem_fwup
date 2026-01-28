@@ -24,6 +24,9 @@ defmodule Mix.Tasks.Upload do
 
    * `--firmware` - The path to a fw file
    * `--port` - An alternative TCP port to use for the upload (defaults to 22)
+   * `--task` - The fwup task to run on the device (defaults to "upgrade").
+     Use this to run alternative tasks like "complete" or custom tasks defined
+     in your firmware.
 
   ## Examples
 
@@ -35,13 +38,18 @@ defmodule Mix.Tasks.Upload do
 
       mix upload 192.168.1.120 --firmware _build/rpi0_prod/nerves/images/app.fw
 
+  Run the complete task instead of upgrade:
+
+      MIX_TARGET=rpi0 mix upload nerves.local --task complete
+
   """
 
   use Mix.Task
 
   @switches [
     firmware: :string,
-    port: :integer
+    port: :integer,
+    task: :string
   ]
 
   @doc false
@@ -66,18 +74,22 @@ defmodule Mix.Tasks.Upload do
     port = opts[:port] || 22
     validate_port!(port)
 
+    task = opts[:task]
+    task_env = if task, do: "FWUP_TASK=#{task} ", else: ""
+    send_env_opt = if task, do: "-o SendEnv=FWUP_TASK ", else: ""
+
     firmware_path = firmware(opts)
 
     Mix.shell().info("""
     Path: #{firmware_path}
     #{maybe_print_firmware_uuid(firmware_path)}
-    Uploading to #{ip}:#{port}...
+    #{maybe_print_task(task)}Uploading to #{ip}:#{port}...
     """)
 
     # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
     {_, status} =
       InteractiveCmd.shell(
-        "cat #{shell_quote(firmware_path)} | ssh -p #{port} -s -- #{shell_quote(ip)} fwup",
+        "#{task_env}cat #{shell_quote(firmware_path)} | ssh #{send_env_opt}-p #{port} -s -- #{shell_quote(ip)} fwup",
         env: [{"LD_LIBRARY_PATH", false}]
       )
 
@@ -177,6 +189,9 @@ defmodule Mix.Tasks.Upload do
     # on as normal by returning an empty line
     _, _ -> ""
   end
+
+  defp maybe_print_task(nil), do: ""
+  defp maybe_print_task(task), do: "Task: #{task}\n"
 
   defp shell_quote(str), do: "'" <> String.replace(str, "'", "'\"'\"'") <> "'"
 end

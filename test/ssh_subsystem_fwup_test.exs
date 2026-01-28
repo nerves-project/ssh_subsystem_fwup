@@ -45,10 +45,20 @@ defmodule SSHSubsystemFwupTest do
 
   @spec do_ssh(binary()) :: {binary(), integer()}
   def do_ssh(payload) do
+    do_ssh(payload, [])
+  end
+
+  def do_ssh(payload, env) when is_list(env) do
     connect_opts = [silently_accept_hosts: true, user: ~c"user", password: ~c"password"]
 
     {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
     {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
+
+    # Send environment variables before starting the subsystem
+    for {var, value} <- env do
+      :ssh_connection.setenv(connection_ref, channel_id, to_charlist(var), to_charlist(value), 500)
+    end
+
     :success = :ssh_connection.subsystem(connection_ref, channel_id, ~c"fwup", 500)
 
     # Sending data can fail if the remote side closes first. That's what happens
@@ -286,6 +296,55 @@ defmodule SSHSubsystemFwupTest do
 
       assert output =~ "Success!"
       assert exit_status == 0
+    end)
+
+    # Check that the success function was called
+    assert_receive :success
+
+    # Check that the update was applied
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
+  end
+
+  test "FWUP_TASK environment variable overrides default task", context do
+    options = default_options(context.test)
+    File.touch!(options[:devpath])
+
+    start_sshd(options)
+
+    # Create firmware with a custom task
+    fw_contents = Fwup.create_firmware(task: "custom_task")
+
+    capture_log(fn ->
+      # Send FWUP_TASK environment variable to override the task
+      {output, exit_status} = do_ssh(fw_contents, [{"FWUP_TASK", "custom_task"}])
+
+      assert exit_status == 0
+      assert output =~ "Success!"
+    end)
+
+    # Check that the success function was called
+    assert_receive :success
+
+    # Check that the update was applied
+    assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
+  end
+
+  test "FWUP_TASK environment variable overrides configured task", context do
+    # Configure with "upgrade" task but override via env to "override_task"
+    options = default_options(context.test) ++ [task: "upgrade"]
+    File.touch!(options[:devpath])
+
+    start_sshd(options)
+
+    # Create firmware with the override task
+    fw_contents = Fwup.create_firmware(task: "override_task")
+
+    capture_log(fn ->
+      # Send FWUP_TASK environment variable to override the configured task
+      {output, exit_status} = do_ssh(fw_contents, [{"FWUP_TASK", "override_task"}])
+
+      assert exit_status == 0
+      assert output =~ "Success!"
     end)
 
     # Check that the success function was called

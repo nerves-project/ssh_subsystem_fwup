@@ -60,7 +60,9 @@ defmodule SSHSubsystemFwup do
     return value closes the connection.
   * `:success_callback` - an MFArgs to call when a firmware update completes
     successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
-  * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
+  * `:task` - the task to run in the firmware update. Defaults to `"upgrade"`.
+    This can be overridden by clients using SSH's `SendEnv` option to pass the
+    `FWUP_TASK` environment variable.
   """
   @type options :: [
           devpath: Path.t(),
@@ -74,6 +76,20 @@ defmodule SSHSubsystemFwup do
 
   @doc """
   Helper for creating the SSH subsystem spec
+
+  Clients can override the task by using SSH's `SendEnv` option to pass the
+  `FWUP_TASK` environment variable. For example:
+
+  ```shell
+  FWUP_TASK=complete cat firmware.fw | ssh -o SendEnv=FWUP_TASK -s device fwup
+  ```
+
+  Or using the provided upload tools:
+
+  ```shell
+  mix upload nerves.local --task complete
+  ./upload.sh --task complete nerves.local
+  ```
   """
   @spec subsystem_spec(options()) :: :ssh.subsystem_spec()
   def subsystem_spec(options \\ []) do
@@ -88,7 +104,7 @@ defmodule SSHSubsystemFwup do
       |> Keyword.merge(Application.get_all_env(:ssh_subsystem_fwup))
       |> Keyword.merge(options)
 
-    {:ok, %{state: :running_fwup, id: nil, cm: nil, fwup: nil, options: combined_options}}
+    {:ok, %{state: :running_fwup, id: nil, cm: nil, fwup: nil, options: combined_options, env: %{}}}
   end
 
   defp default_options() do
@@ -105,11 +121,19 @@ defmodule SSHSubsystemFwup do
 
   @impl :ssh_client_channel
   def handle_msg({:ssh_channel_up, channel_id, cm}, state) do
-    with {:ok, options} <- precheck(state.options[:precheck_callback], state.options),
+    # Check if FWUP_TASK was set via SendEnv and override the task option
+    options =
+      case Map.get(state.env, "FWUP_TASK") do
+        nil -> state.options
+        task when is_binary(task) -> Keyword.put(state.options, :task, validate_task(task))
+        _ -> state.options
+      end
+
+    with {:ok, options} <- precheck(options[:precheck_callback], options),
          :ok <- check_devpath(options[:devpath]) do
-      Logger.debug("ssh_subsystem_fwup: starting fwup")
+      Logger.debug("ssh_subsystem_fwup: starting fwup with task #{options[:task]}")
       fwup = FwupPort.open_port(options)
-      {:ok, %{state | id: channel_id, cm: cm, fwup: fwup}}
+      {:ok, %{state | id: channel_id, cm: cm, fwup: fwup, options: options}}
     else
       {:error, reason} ->
         _ = :ssh_connection.send(cm, channel_id, "Error: #{reason}")
@@ -158,6 +182,28 @@ defmodule SSHSubsystemFwup do
   def handle_ssh_msg({:ssh_cm, _cm, {:data, _channel_id, 1, _data}}, state) do
     # Ignore stderr
     {:ok, state}
+  end
+
+  def handle_ssh_msg({:ssh_cm, cm, {:env, channel_id, want_reply, var, value}}, state) do
+    # Convert charlists to strings if needed
+    var_str = if is_list(var), do: to_string(var), else: var
+    value_str = if is_list(value), do: to_string(value), else: value
+
+    # Only accept FWUP_TASK environment variable for security
+    new_env =
+      if var_str == "FWUP_TASK" do
+        Map.put(state.env, var_str, value_str)
+      else
+        Logger.debug("ssh_subsystem_fwup: ignoring environment variable #{var_str}")
+        state.env
+      end
+
+    # Reply if requested
+    if want_reply do
+      :ssh_connection.reply_request(cm, want_reply, :success, channel_id)
+    end
+
+    {:ok, %{state | env: new_env}}
   end
 
   def handle_ssh_msg({:ssh_cm, _cm, {:eof, _channel_id}}, state) do
@@ -210,6 +256,17 @@ defmodule SSHSubsystemFwup do
   @impl :ssh_client_channel
   def code_change(_old, state, _extra) do
     {:ok, state}
+  end
+
+  # Validate task name to only contain safe characters (alphanumeric, underscore, hyphen)
+  # to prevent potential command injection
+  defp validate_task(task) when is_binary(task) do
+    if Regex.match?(~r/^[a-zA-Z0-9_-]+$/, task) do
+      task
+    else
+      Logger.warning("ssh_subsystem_fwup: invalid task name #{inspect(task)}, using default")
+      "upgrade"
+    end
   end
 
   defp check_devpath(devpath) do
