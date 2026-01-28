@@ -169,13 +169,40 @@ defmodule Mix.Tasks.Upload do
   end
 
   defp maybe_print_firmware_uuid(fw_path) do
-    fwup = System.find_executable("fwup")
-    {uuid, 0} = System.cmd(fwup, ["-m", "--metadata-key", "meta-uuid", "-i", fw_path])
-    "UUID: #{uuid}\n"
+    kv = firmware_metadata!(fw_path)
+
+    nickname = kv["meta-nickname"]
+    uuid = kv["meta-uuid"]
+
+    cond do
+      nickname != nil and uuid != nil -> "UUID: #{nickname} (#{uuid})"
+      uuid != nil -> "UUID: #{uuid}"
+      true -> "UUID: missing"
+    end
   catch
-    # fwup may not be on the host or something else failed, but continue
-    # on as normal by returning an empty line
-    _, _ -> ""
+    _, _ -> "UUID: error"
+  end
+
+  defp firmware_metadata!(fw_path) do
+    {metadata, 0} = System.cmd("fwup", ["-m", "-i", fw_path])
+    metadata |> String.split("\n") |> Enum.map(&parse_kv/1) |> Enum.reject(&is_nil/1) |> Map.new()
+  end
+
+  defp parse_kv(str) do
+    case String.split(str, "=", parts: 2) do
+      [k, v] -> {unescape_if_quoted(k), unescape_if_quoted(v)}
+      _ -> nil
+    end
+  end
+
+  defp unescape_if_quoted(str) do
+    if String.starts_with?(str, "\"") and String.ends_with?(str, "\"") do
+      str
+      |> String.slice(1..-2//1)
+      |> Macro.unescape_string()
+    else
+      str
+    end
   end
 
   defp shell_quote(str), do: "'" <> String.replace(str, "'", "'\"'\"'") <> "'"
