@@ -5,6 +5,11 @@
 
 # Changelog
 
+## v0.6.5
+
+* Improvements
+  * Print firmware nickname if available when running `mix upload`
+
 ## v0.6.4
 
 * Improvements
