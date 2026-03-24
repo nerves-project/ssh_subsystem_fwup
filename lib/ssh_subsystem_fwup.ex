@@ -195,8 +195,15 @@ defmodule SSHSubsystemFwup do
   defp run_callback(0 = _rc, {m, f, args}) do
     # Let others know that fwup was successful. The usual operation
     # here is to reboot. Run the callback in its own process so that
-    # any issues with it don't affect processing here.
-    _ = spawn(m, f, args)
+    # any issues with it don't affect processing here. A short delay
+    # gives the SSH connection time to close cleanly before the
+    # callback (e.g., reboot) tears down the system.
+    _ =
+      spawn(fn ->
+        Process.sleep(500)
+        apply(m, f, args)
+      end)
+
     :ok
   end
 

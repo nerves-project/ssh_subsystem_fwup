@@ -100,7 +100,7 @@ defmodule SSHSubsystemFwupTest do
     end)
 
     # Check that the success function was called
-    assert_receive :success
+    assert_receive :success, 1000, 1000
 
     # Check that the update was applied
     # First 512 bytes is "Hello, world!"
@@ -132,7 +132,7 @@ defmodule SSHSubsystemFwupTest do
     end)
 
     # Check that the success function was called
-    assert_receive :success
+    assert_receive :success, 1000
 
     # Check that the update was applied
     # The first 512 bytes should be the Hello world
@@ -206,7 +206,7 @@ defmodule SSHSubsystemFwupTest do
     end)
 
     # Check that the success function was called
-    assert_receive :success
+    assert_receive :success, 1000
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
@@ -250,7 +250,7 @@ defmodule SSHSubsystemFwupTest do
     end)
 
     # Check that the success function was called
-    assert_receive :success
+    assert_receive :success, 1000
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
@@ -289,7 +289,7 @@ defmodule SSHSubsystemFwupTest do
     end)
 
     # Check that the success function was called
-    assert_receive :success
+    assert_receive :success, 1000
 
     # Check that the update was applied
     assert match?(<<"Hello, world!", _::binary>>, File.read!(options[:devpath]))
