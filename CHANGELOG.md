@@ -5,6 +5,13 @@
 
 # Changelog
 
+## v0.6.6
+
+* Improvements
+  * Delay notification of exit by 500 ms to allow time for gracefuly closing the
+    ssh connection. This reduces or hopefully prevents the client reporting an
+    error when the upload was successful.
+
 ## v0.6.5
 
 * Improvements
