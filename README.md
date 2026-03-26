@@ -100,6 +100,44 @@ equivalent:
 cat $firmware | ssh -s $nerves_device fwup
 ```
 
+To run a specific task (like `complete` instead of the default `upgrade`), use
+SSH's `SendEnv` option to pass the `FWUP_TASK` environment variable:
+
+```shell
+FWUP_TASK=complete cat $firmware | ssh -o SendEnv=FWUP_TASK -s $nerves_device fwup
+```
+
+## Running different fwup tasks
+
+By default, uploads run the `upgrade` fwup task. For advanced use cases, you
+may want to run different tasks like:
+
+* `complete` - Completely re-image the device (useful for recovering or initial setup)
+* `ops` - Run operations firmware for partition validation, data erasure, or U-Boot updates
+
+No special server configuration is needed to support different tasks. The
+client specifies the task using SSH's `SendEnv` option.
+
+### Uploading with a specific task
+
+Using `mix upload`:
+
+```shell
+mix upload nerves.local --task complete
+```
+
+Using `upload.sh`:
+
+```shell
+./upload.sh --task complete nerves.local
+```
+
+Using raw ssh:
+
+```shell
+FWUP_TASK=complete cat my_firmware.fw | ssh -o SendEnv=FWUP_TASK -s nerves.local fwup
+```
+
 ## Configuration
 
 The default options should satisfy most use cases, but it's possible to alter
@@ -141,7 +179,9 @@ The following options are available:
   value closes the connection.
 * `:success_callback` - an MFArgs to call when a firmware update completes
   successfully. Defaults to `{Nerves.Runtime, :reboot, []}`.
-* `:task` - the task to run in the firmware update. Defaults to `"upgrade"`
+* `:task` - the task to run in the firmware update. Defaults to `"upgrade"`.
+  This can be overridden by clients using SSH's `SendEnv` option to pass the
+  `FWUP_TASK` environment variable.
 
 ## License
 
