@@ -5,6 +5,14 @@
 
 # Changelog
 
+## v0.6.7
+
+* Improvements
+  * Add `--password` to `mix upload` so that it's possible to automatically fill
+    in ssh passwords. This is useful for working with firmware like
+    circuits_quickstart and nerves_livebook images where passwords are for
+    convenience rather than security.
+
 ## v0.6.6
 
 * Improvements

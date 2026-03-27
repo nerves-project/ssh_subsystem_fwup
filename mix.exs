@@ -3,7 +3,7 @@
 defmodule SSHSubsystemFwup.MixProject do
   use Mix.Project
 
-  @version "0.6.6"
+  @version "0.6.7"
   @source_url "https://github.com/nerves-project/ssh_subsystem_fwup"
 
   with {:ok, path} <- File.cwd(),
