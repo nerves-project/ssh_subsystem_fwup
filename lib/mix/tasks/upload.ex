@@ -18,11 +18,13 @@ defmodule Mix.Tasks.Upload do
   NOTE: This implementation cannot ask for passphrases, and therefore, cannot
   connect to devices protected by username/passwords or decrypt
   password-protected private keys. One workaround is to use the `ssh-agent` to
-  pass credentials.
+  pass credentials. Another option is to use the `--password` flag which
+  requires `sshpass` to be installed.
 
   ## Command line options
 
    * `--firmware` - The path to a fw file
+   * `--password` - A password to use for SSH authentication
    * `--port` - An alternative TCP port to use for the upload (defaults to 22)
 
   ## Examples
@@ -41,6 +43,7 @@ defmodule Mix.Tasks.Upload do
 
   @switches [
     firmware: :string,
+    password: :string,
     port: :integer
   ]
 
@@ -66,6 +69,9 @@ defmodule Mix.Tasks.Upload do
     port = opts[:port] || 22
     validate_port!(port)
 
+    password = opts[:password]
+    if password, do: check_sshpass!()
+
     firmware_path = firmware(opts)
 
     Mix.shell().info("""
@@ -74,10 +80,12 @@ defmodule Mix.Tasks.Upload do
     Uploading to #{ip}:#{port}...
     """)
 
+    ssh_cmd = build_ssh_command(firmware_path, ip, port, password)
+
     # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
     {_, status} =
       InteractiveCmd.shell(
-        "cat #{shell_quote(firmware_path)} | ssh -p #{port} -s -- #{shell_quote(ip)} fwup",
+        ssh_cmd,
         env: [{"LD_LIBRARY_PATH", false}]
       )
 
@@ -164,6 +172,25 @@ defmodule Mix.Tasks.Upload do
       """)
     end
   end
+
+  defp check_sshpass!() do
+    if System.find_executable("sshpass") == nil do
+      Mix.raise("""
+      Cannot find 'sshpass'. Install it to use the --password option.
+
+      On Debian/Ubuntu: sudo apt install sshpass
+      On macOS:         brew install sshpass
+      On Fedora:        sudo dnf install sshpass
+      """)
+    end
+  end
+
+  defp build_ssh_command(firmware_path, ip, port, password) do
+    "cat #{shell_quote(firmware_path)} | #{sshpass(password)} ssh -p #{port} -s -- #{shell_quote(ip)} fwup"
+  end
+
+  defp sshpass(nil), do: ""
+  defp sshpass(password), do: "sshpass -p #{shell_quote(password)}"
 
   defp validate_port!(port) when is_integer(port) and port > 0 and port <= 65535, do: :ok
 
