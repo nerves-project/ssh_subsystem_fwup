@@ -74,11 +74,12 @@ defmodule Mix.Tasks.Upload do
 
     firmware_path = firmware(opts)
 
-    Mix.shell().info("""
-    Path: #{firmware_path}
-    #{maybe_print_firmware_uuid(firmware_path)}
-    Uploading to #{ip}:#{port}...
-    """)
+    Mix.shell().info([
+      "Path: #{firmware_path}\n",
+      maybe_print_firmware_uuid(firmware_path),
+      "\n\n",
+      "Uploading to #{ip}:#{port}..."
+    ])
 
     ssh_cmd = build_ssh_command(firmware_path, ip, port, password)
 
@@ -217,12 +218,12 @@ defmodule Mix.Tasks.Upload do
     uuid = kv["meta-uuid"]
 
     cond do
-      nickname != nil and uuid != nil -> "UUID: #{nickname} (#{uuid})"
+      nickname != nil and uuid != nil -> ["UUID: ", :bright, nickname, :normal, " (#{uuid})"]
       uuid != nil -> "UUID: #{uuid}"
-      true -> "UUID: missing"
+      true -> ["UUID: ", :red, "missing"]
     end
   catch
-    _, _ -> "UUID: error"
+    _, _ -> ["UUID: ", :red, "error"]
   end
 
   defp firmware_metadata!(fw_path) do
