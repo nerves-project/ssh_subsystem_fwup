@@ -100,7 +100,7 @@ defmodule SSHSubsystemFwupTest do
     end)
 
     # Check that the success function was called
-    assert_receive :success, 1000, 1000
+    assert_receive :success, 1000
 
     # Check that the update was applied
     # First 512 bytes is "Hello, world!"
