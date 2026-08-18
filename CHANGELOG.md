@@ -5,6 +5,11 @@
 
 # Changelog
 
+## v0.6.8
+
+* Improvements
+  * Improve visibility of the UUID nickname and errors when running `mix upload`
+
 ## v0.6.7
 
 * Improvements
