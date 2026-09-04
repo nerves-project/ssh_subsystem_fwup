@@ -83,11 +83,19 @@ defmodule Mix.Tasks.Upload do
 
     ssh_cmd = build_ssh_command(firmware_path, ip, port, password)
 
-    # LD_LIBRARY_PATH is unset to avoid errors with host ssl (see commit 9b1df471)
+    # Run ssh with a cleared environment to avoid the following:
+    # 1. LD_LIBRARY_PATH errors with host ssl (see commit 9b1df471)
+    # 2. OTP 29.0.6 change at https://github.com/erlang/otp/pull/11437 that
+    #    prevents the fwup subsystem to be requested if OS vars are set.
+    clear_env =
+      System.get_env()
+      |> Enum.reject(fn {k, _v} -> k == "PATH" end)
+      |> Enum.map(fn {k, _} -> {k, nil} end)
+
     {_, status} =
       InteractiveCmd.shell(
         ssh_cmd,
-        env: [{"LD_LIBRARY_PATH", false}]
+        env: clear_env
       )
 
     cond do

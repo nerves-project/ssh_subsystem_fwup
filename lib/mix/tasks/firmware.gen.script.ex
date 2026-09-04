@@ -111,7 +111,7 @@ defmodule Mix.Tasks.Firmware.Gen.Script do
   echo
   echo "Uploading to $DESTINATION..."
 
-  cat "$FILENAME" | ssh -s $SSH_OPTIONS $DESTINATION fwup
+  cat "$FILENAME" | env -i ssh -s $SSH_OPTIONS $DESTINATION fwup
   """
 
   @spec run(keyword()) :: :ok
