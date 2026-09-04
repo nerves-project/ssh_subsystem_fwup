@@ -5,6 +5,13 @@
 
 # Changelog
 
+## v0.6.9
+
+* Fixes
+  * Fix 'subsystem request failed on channel 0' error with OTP 29.0.6. The fix
+    is to clear the OS environment. It can still fail if a user's ssh config has
+    a SetEnv command that gets applied.
+
 ## v0.6.8
 
 * Improvements
