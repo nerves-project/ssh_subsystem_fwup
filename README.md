@@ -7,6 +7,7 @@
 
 [![Hex version](https://img.shields.io/hexpm/v/ssh_subsystem_fwup.svg "Hex version")](https://hex.pm/packages/ssh_subsystem_fwup)
 [![API docs](https://img.shields.io/hexpm/v/ssh_subsystem_fwup.svg?label=hexdocs "API docs")](https://ssh-subsystem-fwup.hexdocs.pm/SSHSubsystemFwup.html)
+[![Nerves compatibility](https://compatibility.nerves-project.org/badge/ssh_subsystem_fwup.svg)](https://compatibility.nerves-project.org/packages/ssh_subsystem_fwup)
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/nerves-project/ssh_subsystem_fwup/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/nerves-project/ssh_subsystem_fwup/tree/main)
 [![REUSE status](https://api.reuse.software/badge/github.com/nerves-project/ssh_subsystem_fwup)](https://api.reuse.software/info/github.com/nerves-project/ssh_subsystem_fwup)
 
