@@ -1,5 +1,7 @@
 <!--
   SPDX-FileCopyrightText: 2017 Frank Hunleth
+  SPDX-FileCopyrightText: 2017 Joel Byler
+  SPDX-FileCopyrightText: 2020 Jon Carstens
   SPDX-License-Identifier: CC-BY-4.0
 -->
 
