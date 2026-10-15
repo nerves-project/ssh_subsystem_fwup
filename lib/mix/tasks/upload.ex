@@ -89,7 +89,7 @@ defmodule Mix.Tasks.Upload do
     #    prevents the fwup subsystem to be requested if OS vars are set.
     clear_env =
       System.get_env()
-      |> Enum.reject(fn {k, _v} -> k == "PATH" end)
+      |> Enum.reject(fn {k, _v} -> k in ["PATH", "SSH_AUTH_SOCK"] end)
       |> Enum.map(fn {k, _} -> {k, nil} end)
 
     {_, status} =
