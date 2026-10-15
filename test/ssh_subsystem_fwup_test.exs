@@ -45,11 +45,7 @@ defmodule SSHSubsystemFwupTest do
 
   @spec do_ssh(binary()) :: {binary(), integer()}
   def do_ssh(payload) do
-    connect_opts = [silently_accept_hosts: true, user: ~c"user", password: ~c"password"]
-
-    {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
-    {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
-    :success = :ssh_connection.subsystem(connection_ref, channel_id, ~c"fwup", 500)
+    {connection_ref, channel_id} = connect_ssh()
 
     # Sending data can fail if the remote side closes first. That's what happens
     # when the remote reports a fatal error and that's expected.
@@ -57,6 +53,17 @@ defmodule SSHSubsystemFwupTest do
     _ = :ssh_connection.send_eof(connection_ref, channel_id)
 
     wait_for_complete(connection_ref, channel_id, {"", -1})
+  end
+
+  defp connect_ssh() do
+    connect_opts = [silently_accept_hosts: true, user: ~c"user", password: ~c"password"]
+
+    {:ok, connection_ref} = :ssh.connect(:localhost, @port, connect_opts)
+    on_exit(fn -> :ssh.close(connection_ref) end)
+    {:ok, channel_id} = :ssh_connection.session_channel(connection_ref, 500)
+    :success = :ssh_connection.subsystem(connection_ref, channel_id, ~c"fwup", 500)
+
+    {connection_ref, channel_id}
   end
 
   defp wait_for_complete(connection_ref, channel_id, {result, exit_status} = rc) do
@@ -173,6 +180,92 @@ defmodule SSHSubsystemFwupTest do
              <<"Hello, world!", 0::size(3992), ^expected_encrypted::512-bytes, _::binary>>,
              contents
            )
+  end
+
+  @spec wait_for_upload(pid()) :: {:ok, keyword()}
+  def wait_for_upload(test_pid) do
+    send(test_pid, {:upload_ready, self()})
+
+    receive do
+      :continue_upload -> {:ok, []}
+    after
+      5000 -> {:error, "Timed out waiting to start upload"}
+    end
+  end
+
+  test "success callback waits for the client to acknowledge channel close", context do
+    capture_log(fn ->
+      {connection_ref, channel_id, subsystem} = start_paused_upload(context)
+      monitor = Process.monitor(subsystem)
+
+      try do
+        refute_receive :success, 750
+        assert Process.alive?(subsystem)
+      after
+        :sys.resume(connection_ref)
+      end
+
+      {output, exit_status} = wait_for_complete(connection_ref, channel_id, {"", -1})
+      assert output =~ "Success!"
+      assert exit_status == 0
+      assert_receive {:DOWN, ^monitor, :process, ^subsystem, :normal}
+      assert_receive :success, 1000
+      refute_receive :success
+    end)
+  end
+
+  test "success callback still runs if the client disconnects before acknowledging", context do
+    capture_log(fn ->
+      {connection_ref, _channel_id, subsystem} = start_paused_upload(context)
+      monitor = Process.monitor(subsystem)
+
+      try do
+        refute_receive :success, 750
+        :ok = :sys.terminate(connection_ref, :normal)
+        assert_receive :success, 1000
+        assert_receive {:DOWN, ^monitor, :process, ^subsystem, _reason}
+        refute_receive :success
+      after
+        if Process.alive?(connection_ref), do: :sys.resume(connection_ref)
+      end
+    end)
+  end
+
+  test "success callback has a bounded wait for channel close acknowledgment", context do
+    log =
+      capture_log(fn ->
+        {connection_ref, _channel_id, subsystem} = start_paused_upload(context)
+        monitor = Process.monitor(subsystem)
+
+        try do
+          refute_receive :success, 4500
+          assert_receive :success, 1500
+          assert_receive {:DOWN, ^monitor, :process, ^subsystem, :normal}
+          refute_receive :success
+        after
+          :sys.resume(connection_ref)
+        end
+      end)
+
+    assert log =~ "timed out waiting for SSH channel close acknowledgment"
+  end
+
+  defp start_paused_upload(context) do
+    options =
+      default_options(context.test) ++
+        [precheck_callback: {__MODULE__, :wait_for_upload, [self()]}]
+
+    File.touch!(options[:devpath])
+    start_sshd(options)
+    fw_contents = Fwup.create_firmware()
+
+    {connection_ref, channel_id} = connect_ssh()
+    assert_receive {:upload_ready, subsystem}
+    :ok = :ssh_connection.send(connection_ref, channel_id, fw_contents)
+    :ok = :ssh_connection.send_eof(connection_ref, channel_id)
+    :ok = :sys.suspend(connection_ref)
+    send(subsystem, :continue_upload)
+    {connection_ref, channel_id, subsystem}
   end
 
   test "failed update", context do
