@@ -119,6 +119,15 @@ defmodule SSHSubsystemFwup do
     end
   end
 
+  def handle_msg(:close_timeout, %{state: :waiting_for_close} = state) do
+    Logger.warning("ssh_subsystem_fwup: timed out waiting for SSH channel close acknowledgment")
+    {:stop, state.id, state}
+  end
+
+  def handle_msg(_message, %{state: :waiting_for_close} = state) do
+    {:ok, state}
+  end
+
   def handle_msg({port, message}, %{fwup: port} = state) do
     case FwupPort.handle_port(port, message) do
       {:respond, response} ->
@@ -132,8 +141,15 @@ defmodule SSHSubsystemFwup do
         _ = :ssh_connection.exit_status(state.cm, state.id, status)
         :ssh_connection.close(state.cm, state.id)
         Logger.debug("ssh_subsystem_fwup: fwup exited with status #{status}")
-        run_callback(status, state.options[:success_callback])
-        {:stop, :normal, state}
+
+        if status == 0 do
+          # close/2 only sends the close request. The channel behavior calls
+          # terminate/2 when the peer acknowledges it or the connection drops.
+          Process.send_after(self(), :close_timeout, 5000)
+          {:ok, %{state | state: :waiting_for_close}}
+        else
+          {:stop, state.id, state}
+        end
     end
   end
 
@@ -150,6 +166,10 @@ defmodule SSHSubsystemFwup do
   end
 
   @impl :ssh_client_channel
+  def handle_ssh_msg(_message, %{state: :waiting_for_close} = state) do
+    {:ok, state}
+  end
+
   def handle_ssh_msg({:ssh_cm, _cm, {:data, _channel_id, 0, data}}, state) do
     FwupPort.send_data(state.fwup, data)
     {:ok, state}
@@ -195,21 +215,18 @@ defmodule SSHSubsystemFwup do
   defp run_callback(0 = _rc, {m, f, args}) do
     # Let others know that fwup was successful. The usual operation
     # here is to reboot. Run the callback in its own process so that
-    # any issues with it don't affect processing here. A short delay
-    # gives the SSH connection time to close cleanly before the
-    # callback (e.g., reboot) tears down the system.
-    _ =
-      spawn(fn ->
-        Process.sleep(500)
-        apply(m, f, args)
-      end)
-
+    # any issues with it don't affect processing here.
+    _ = spawn(m, f, args)
     :ok
   end
 
   defp run_callback(_rc, _mfargs), do: :ok
 
   @impl :ssh_client_channel
+  def terminate(_reason, %{state: :waiting_for_close} = state) do
+    run_callback(0, state.options[:success_callback])
+  end
+
   def terminate(_reason, _state) do
     :ok
   end
