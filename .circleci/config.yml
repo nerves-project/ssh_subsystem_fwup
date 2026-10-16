@@ -14,8 +14,7 @@ tags: &tags
     1.18.5-erlang-27.3.4.19-alpine-3.24.2,
     1.17.3-erlang-27.3.4.16-alpine-3.24.1,
     1.16.2-erlang-26.2.4-alpine-3.19.1,
-    1.15.7-erlang-26.1.2-alpine-3.18.4,
-    1.14.5-erlang-25.3.2.6-alpine-3.18.2
+    1.15.7-erlang-26.1.2-alpine-3.18.4
   ]
 
 jobs:
