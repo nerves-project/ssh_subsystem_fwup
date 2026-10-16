@@ -5,6 +5,18 @@
 
 # Changelog
 
+## v0.6.10
+
+This release removes Elixir 1.14 support due to dependencies no longer
+supporting it.
+
+* Fixes
+  * Implement ssh close handshake to fix incorrect failure reports on slow
+    connections
+  * Support using an ssh-agent with `mix upload`. This broke in `v0.6.9` due to
+    the OTP 29.0.6 workaround. The bug that created the need for the workaround
+    is fixed in OTP 29.1.1.
+
 ## v0.6.9
 
 * Fixes
